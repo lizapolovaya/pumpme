@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'KINETIC Dashboard',
-    short_name: 'KINETIC',
+    name: 'PumpMe Dashboard',
+    short_name: 'PumpMe',
     description: 'Athletic performance dashboard for daily training readiness.',
     start_url: '/',
     scope: '/',

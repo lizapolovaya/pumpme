@@ -19,9 +19,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'KINETIC Dashboard - Today',
+  title: 'PumpMe Dashboard - Today',
   description: 'Athletic performance dashboard for daily training readiness.',
-  applicationName: 'KINETIC',
+  applicationName: 'PumpMe',
   icons: {
     icon: '/icons/icon-192.png',
     apple: '/icons/icon-192.png',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'KINETIC'
+    title: 'PumpMe'
   }
 };
 
