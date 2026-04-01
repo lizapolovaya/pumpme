@@ -50,7 +50,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
             <h1 className="font-headline text-2xl font-black italic tracking-[-0.18em] text-primary-container">
-              KINETIC
+              PumpMe
             </h1>
           </div>
           <button
