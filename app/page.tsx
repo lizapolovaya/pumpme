@@ -1,12 +1,10 @@
 import {
   ArrowUpRight,
   Bolt,
-  CalendarDays,
-  Dumbbell,
   Menu,
   Play,
-  TrendingUp
 } from 'lucide-react';
+import { BottomNav } from './components/bottom-nav';
 
 const readinessScore = 82;
 const circumference = 2 * Math.PI * 40;
@@ -236,32 +234,7 @@ export default function Home() {
         </section>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 rounded-t-[2rem] bg-surface-container-high/70 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
-        <div className="mx-auto grid max-w-md grid-cols-4 md:max-w-5xl">
-          <a className="flex scale-110 flex-col items-center justify-center gap-1 text-primary-container" href="#">
-            <Bolt className="h-5 w-5 fill-current" strokeWidth={2.2} />
-            <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em]">Today</span>
-          </a>
-          <a className="flex flex-col items-center justify-center gap-1 text-slate-500/70" href="#">
-            <Dumbbell className="h-5 w-5" strokeWidth={2.1} />
-            <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em]">
-              Workouts
-            </span>
-          </a>
-          <a className="flex flex-col items-center justify-center gap-1 text-slate-500/70" href="#">
-            <CalendarDays className="h-5 w-5" strokeWidth={2.1} />
-            <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em]">
-              Calendar
-            </span>
-          </a>
-          <a className="flex flex-col items-center justify-center gap-1 text-slate-500/70" href="#">
-            <TrendingUp className="h-5 w-5" strokeWidth={2.1} />
-            <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em]">
-              Progress
-            </span>
-          </a>
-        </div>
-      </nav>
+      <BottomNav active="today" />
     </>
   );
 }
