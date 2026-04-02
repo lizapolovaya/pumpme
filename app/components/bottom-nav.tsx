@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Bolt, CalendarDays, Dumbbell, TrendingUp } from 'lucide-react';
 
 type BottomNavProps = {
-  active: 'today' | 'workouts';
+  active: 'today' | 'workouts' | 'calendar';
 };
 
 const itemBase =
@@ -34,12 +34,19 @@ export function BottomNav({ active }: BottomNavProps) {
             Workouts
           </span>
         </Link>
-        <a className={`${itemBase} text-slate-500 hover:text-primary-container`} href="#">
-          <CalendarDays className="h-5 w-5" strokeWidth={2.1} />
+        <Link
+          href="/calendar"
+          className={`${itemBase} ${
+            active === 'calendar'
+              ? 'rounded-xl bg-surface-container-high text-primary-container'
+              : 'text-slate-500 hover:text-primary-container'
+          }`}
+        >
+          <CalendarDays className={`h-5 w-5 ${active === 'calendar' ? 'fill-current' : ''}`} strokeWidth={2.1} />
           <span className="font-headline text-[10px] font-medium uppercase tracking-[0.18em]">
             Calendar
           </span>
-        </a>
+        </Link>
         <a className={`${itemBase} text-slate-500 hover:text-primary-container`} href="#">
           <TrendingUp className="h-5 w-5" strokeWidth={2.1} />
           <span className="font-headline text-[10px] font-medium uppercase tracking-[0.18em]">
