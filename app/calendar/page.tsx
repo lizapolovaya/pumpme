@@ -97,9 +97,9 @@ export default function CalendarPage() {
               <Link className="scale-110 font-label text-[10px] font-bold uppercase tracking-[0.18em] text-primary-container" href="/calendar">
                 Calendar
               </Link>
-              <button className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-primary-container" type="button">
+              <Link className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-primary-container" href="/progress">
                 Progress
-              </button>
+              </Link>
             </div>
             <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-high transition-opacity hover:opacity-80">
               <img
