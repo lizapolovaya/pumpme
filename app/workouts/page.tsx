@@ -1,7 +1,6 @@
 import {
   Activity,
   Bolt,
-  CalendarDays,
   CirclePlus,
   Dumbbell,
   EllipsisVertical,
@@ -9,6 +8,7 @@ import {
   Scale,
   TrendingUp
 } from 'lucide-react';
+import Link from 'next/link';
 import { BottomNav } from '../components/bottom-nav';
 
 const statCards = [
@@ -62,13 +62,13 @@ export default function WorkoutsPage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
+            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
               <img
                 alt="User avatar"
                 className="h-full w-full object-cover"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFH4t9ym2kJYY3TZ0ZLqSKc-lA927A-vr-1_tJsPSm7YfjtMKMOntJum6ahswAxawLYNbrNabyCTpYqJ-0Su4Q3bDirpbkG0q1aJgIk7ltTOarHFjg279CJzxeXyfV-WTyuHpfEqBPNq51NcbuuFFLbQ0Pp6WgXmeh_L3Ctu4Fi31jL_DFJrTIWcI9psnWECdMk6TmrxNuuYB4brILdeRmMD1WU5v5fwUzDBpZKCwMJ3ySFQ4Bzovx3x6n0mk9LT9F9e7pXrWzvZxf"
               />
-            </div>
+            </Link>
           </div>
         </div>
       </header>

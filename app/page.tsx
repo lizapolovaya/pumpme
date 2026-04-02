@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   ArrowUpRight,
   Bolt,
@@ -48,9 +49,9 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex flex-1 justify-end">
-            <button
+            <Link
+              href="/profile"
               className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-highest transition-transform duration-150 active:scale-95"
-              type="button"
               aria-label="Open profile"
             >
               <img
@@ -58,7 +59,7 @@ export default function Home() {
                 alt="Profile avatar"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXb6bQ_6pGK2QytE71viNJV7IVFABH_L7U4x8FcpFvOqHCQ9OxgKk1xBZQQZK-HGl_k1N_vfKdaaoc95JBGZXRfAO6x5Pa5XEUfuRV5jZCSAwxTZwt7h3SXMR9gpnY0sP_O5tKTUCnCqJyYBX9OVIUYHjWTTu1cfHJfQdUF6K70u1VYb720azdtT9BGxtdaIv3nUcw0kXZGwkWN0FCpwweKFzzvaC8MKFTwEI83Vt74SaRgemweAt0gDoBUwMHu2N__xU6IZLiEBnR"
               />
-            </button>
+            </Link>
           </div>
         </div>
       </header>

@@ -101,13 +101,13 @@ export default function CalendarPage() {
                 Progress
               </Link>
             </div>
-            <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-high transition-opacity hover:opacity-80">
+            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-high transition-opacity hover:opacity-80">
               <img
                 className="h-full w-full object-cover"
                 alt="Profile avatar"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFE0JhDuoumVUG0HSOx6JsGvKxrHDunbkSM7uAdVZfBiq-LjG_9Gf3tzhrd1Ng9NBEkiP8sHse2Gc1aGDxLBN-Yl7jXkYWLT-d7-EwoqnCqm6MPLkousOKHHzcyyeLdJVU4t2lOpEn-iUdBvcm-PpE0Sanne-nijxMtRjg9i9bsePDWEFtj6cdkYol14gw5KgI2Cdxw-mVaiQKHr8KfZ2Kklt6CdAIZMVM_S-GMZGezKmcufJKOp9x_Q2NXdRviaecar9XpOfZnSsi"
               />
-            </div>
+            </Link>
           </div>
         </div>
       </header>

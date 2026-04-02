@@ -1,4 +1,5 @@
-import { Bolt, Brain, ChevronDown, CircleHelp, Clock3, FileText, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import { Bolt, Brain, ChevronDown, CircleHelp, Clock3, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 import { BottomNav } from '../components/bottom-nav';
 
 type VolumeBar = {
@@ -57,13 +58,13 @@ export default function ProgressPage() {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
+          <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
             <img
               alt="User avatar"
               className="h-full w-full object-cover"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsEGb-JqNfRdqa1zhbmLt29xHSaqCIZds6IJ_hUXbCnuo9SqYB-Lp9NgRgIuP0NT5iGKqNNWwFAZ1QuTzx_YxDOoZ8eXvuvkV6t9rLX4C8qhTiBAJxEUKtraNuArP9v6CtsgUh6cX_mOlnAG0v9y7jV9CL2ybreJgX1qwzTKksJXNKPn3nPkoV5tBkRyBee_eU3E5Dyoq7j2WBQWOHovaLy7hvMfS3snlBbV7Y1qOJF4dKR9ikj4nwdgxVvds1i44dbnnaFSR-yIm9"
             />
-          </div>
+          </Link>
         </div>
       </header>
 
