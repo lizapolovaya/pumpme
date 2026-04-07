@@ -53,7 +53,7 @@ export default function ProgressPage() {
       <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between bg-background px-6 py-4">
         <div className="flex items-center gap-3">
           <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
-          <h1 className="font-headline text-xl font-bold italic tracking-[-0.08em] text-primary-container">
+          <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
             PumpMe
           </h1>
         </div>

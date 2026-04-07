@@ -80,9 +80,9 @@ export default function CalendarPage() {
     <>
       <header className="fixed inset-x-0 top-0 z-30 bg-background">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Bolt className="h-6 w-6 text-primary-container" strokeWidth={2.2} />
-            <h1 className="font-headline text-2xl font-black italic uppercase tracking-[-0.08em] text-primary-container">
+          <div className="flex items-center gap-3">
+            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
+            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
               PumpMe
             </h1>
           </div>
@@ -101,7 +101,7 @@ export default function CalendarPage() {
                 Progress
               </Link>
             </div>
-            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-high transition-opacity hover:opacity-80">
+            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20 transition-opacity hover:opacity-80">
               <img
                 className="h-full w-full object-cover"
                 alt="Profile avatar"

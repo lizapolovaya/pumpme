@@ -51,15 +51,18 @@ export default function ProfilePage() {
           <button className="scale-95 text-outline-variant transition-colors hover:text-on-surface active:duration-75" type="button" aria-label="Menu">
             <Menu className="h-5 w-5" strokeWidth={2.2} />
           </button>
-          <h1 className="font-headline text-3xl font-black italic uppercase tracking-[-0.12em] text-primary-container">
-            PumpMe
-          </h1>
+          <div className="flex items-center gap-3">
+            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
+            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
+              PumpMe
+            </h1>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden font-label text-xs tracking-[0.18em] text-outline-variant md:block">
             PREMIUM USER
           </span>
-          <div className="h-10 w-10 rounded-full border-2 border-primary-container p-0.5">
+          <div className="h-10 w-10 rounded-full border-2 border-primary-container/20 p-0.5">
             <img
               alt="Alex Rivers"
               className="h-full w-full rounded-full object-cover"

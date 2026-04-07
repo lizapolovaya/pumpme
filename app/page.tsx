@@ -42,16 +42,16 @@ export default function Home() {
               <Menu className="h-5 w-5" strokeWidth={2.4} />
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <Bolt className="h-6 w-6 fill-current text-primary-container" strokeWidth={2.6} />
-            <h1 className="font-headline text-3xl font-black italic tracking-[-0.12em] text-primary-container">
+          <div className="flex items-center gap-3">
+            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
+            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
               PumpMe
             </h1>
           </div>
           <div className="flex flex-1 justify-end">
             <Link
               href="/profile"
-              className="h-10 w-10 overflow-hidden rounded-full border-2 border-surface-container-highest transition-transform duration-150 active:scale-95"
+              className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20 transition-transform duration-150 active:scale-95"
               aria-label="Open profile"
             >
               <img
