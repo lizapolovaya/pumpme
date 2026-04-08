@@ -1,6 +1,5 @@
 import {
   Activity,
-  Bolt,
   CirclePlus,
   Dumbbell,
   EllipsisVertical,
@@ -8,7 +7,7 @@ import {
   Scale,
   TrendingUp
 } from 'lucide-react';
-import Link from 'next/link';
+import { AppHeader } from '../components/app-header';
 import { BottomNav } from '../components/bottom-nav';
 
 const statCards = [
@@ -53,27 +52,9 @@ const exercises = [
 export default function WorkoutsPage() {
   return (
     <>
-      <header className="sticky top-0 z-30 bg-surface-container-low">
-        <div className="mx-auto flex w-full max-w-md items-center justify-between px-6 py-4 md:max-w-5xl">
-          <div className="flex items-center gap-3">
-            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
-            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
-              PumpMe
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
-              <img
-                alt="User avatar"
-                className="h-full w-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFH4t9ym2kJYY3TZ0ZLqSKc-lA927A-vr-1_tJsPSm7YfjtMKMOntJum6ahswAxawLYNbrNabyCTpYqJ-0Su4Q3bDirpbkG0q1aJgIk7ltTOarHFjg279CJzxeXyfV-WTyuHpfEqBPNq51NcbuuFFLbQ0Pp6WgXmeh_L3Ctu4Fi31jL_DFJrTIWcI9psnWECdMk6TmrxNuuYB4brILdeRmMD1WU5v5fwUzDBpZKCwMJ3ySFQ4Bzovx3x6n0mk9LT9F9e7pXrWzvZxf"
-              />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
-      <main className="mx-auto max-w-md px-4 pt-6 pb-32 md:max-w-2xl">
+      <main className="mx-auto max-w-md px-4 pt-24 pb-32 md:max-w-2xl">
         <header className="mb-8">
           <p className="mb-1 font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
             Monday, Oct 23

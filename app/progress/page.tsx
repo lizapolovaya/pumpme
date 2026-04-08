@@ -1,5 +1,5 @@
-import { Bolt, Brain, ChevronDown, CircleHelp, Clock3, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
-import Link from 'next/link';
+import { Brain, ChevronDown, CircleHelp, Clock3, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import { AppHeader } from '../components/app-header';
 import { BottomNav } from '../components/bottom-nav';
 
 type VolumeBar = {
@@ -50,23 +50,7 @@ const performanceLogs = [
 export default function ProgressPage() {
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between bg-background px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
-          <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
-            PumpMe
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20">
-            <img
-              alt="User avatar"
-              className="h-full w-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsEGb-JqNfRdqa1zhbmLt29xHSaqCIZds6IJ_hUXbCnuo9SqYB-Lp9NgRgIuP0NT5iGKqNNWwFAZ1QuTzx_YxDOoZ8eXvuvkV6t9rLX4C8qhTiBAJxEUKtraNuArP9v6CtsgUh6cX_mOlnAG0v9y7jV9CL2ybreJgX1qwzTKksJXNKPn3nPkoV5tBkRyBee_eU3E5Dyoq7j2WBQWOHovaLy7hvMfS3snlBbV7Y1qOJF4dKR9ikj4nwdgxVvds1i44dbnnaFSR-yIm9"
-            />
-          </Link>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
         <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">

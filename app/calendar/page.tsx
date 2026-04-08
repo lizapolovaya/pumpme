@@ -1,5 +1,5 @@
-import { Bolt, CalendarDays, EllipsisVertical } from 'lucide-react';
-import Link from 'next/link';
+import { CalendarDays, EllipsisVertical } from 'lucide-react';
+import { AppHeader } from '../components/app-header';
 import { BottomNav } from '../components/bottom-nav';
 
 type CalendarDay = {
@@ -78,41 +78,9 @@ const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 export default function CalendarPage() {
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-30 bg-background">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
-            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
-              PumpMe
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex gap-6 mr-8">
-              <Link className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-primary-container" href="/">
-                Today
-              </Link>
-              <Link className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-primary-container" href="/workouts">
-                Workouts
-              </Link>
-              <Link className="scale-110 font-label text-[10px] font-bold uppercase tracking-[0.18em] text-primary-container" href="/calendar">
-                Calendar
-              </Link>
-              <Link className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 transition-colors hover:text-primary-container" href="/progress">
-                Progress
-              </Link>
-            </div>
-            <Link href="/profile" aria-label="Open profile" className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20 transition-opacity hover:opacity-80">
-              <img
-                className="h-full w-full object-cover"
-                alt="Profile avatar"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFE0JhDuoumVUG0HSOx6JsGvKxrHDunbkSM7uAdVZfBiq-LjG_9Gf3tzhrd1Ng9NBEkiP8sHse2Gc1aGDxLBN-Yl7jXkYWLT-d7-EwoqnCqm6MPLkousOKHHzcyyeLdJVU4t2lOpEn-iUdBvcm-PpE0Sanne-nijxMtRjg9i9bsePDWEFtj6cdkYol14gw5KgI2Cdxw-mVaiQKHr8KfZ2Kklt6CdAIZMVM_S-GMZGezKmcufJKOp9x_Q2NXdRviaecar9XpOfZnSsi"
-              />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
-      <main className="mx-auto min-h-screen max-w-7xl px-4 pt-20 pb-28 md:px-8">
+      <main className="mx-auto min-h-screen max-w-7xl px-4 pt-24 pb-28 md:px-8">
         <section className="mb-8 flex flex-col gap-6 lg:flex-row">
           <div className="flex-1">
             <div className="mb-2 flex items-end justify-between">

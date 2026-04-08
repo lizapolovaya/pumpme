@@ -1,12 +1,9 @@
-import Link from 'next/link';
 import {
-  Bolt,
   ChevronRight,
   CircleHelp,
   Dumbbell,
   LogOut,
   Mail,
-  Menu,
   Pencil,
   Shield,
   Sparkles,
@@ -15,6 +12,7 @@ import {
   Footprints,
   RefreshCw
 } from 'lucide-react';
+import { AppHeader } from '../components/app-header';
 import { BottomNav } from '../components/bottom-nav';
 
 type AccountItem = {
@@ -46,33 +44,9 @@ const infoLinks = [
 export default function ProfilePage() {
   return (
     <>
-      <header className="sticky top-0 z-50 flex w-full items-center justify-between bg-background px-6 py-4">
-        <div className="flex items-center gap-4">
-          <button className="scale-95 text-outline-variant transition-colors hover:text-on-surface active:duration-75" type="button" aria-label="Menu">
-            <Menu className="h-5 w-5" strokeWidth={2.2} />
-          </button>
-          <div className="flex items-center gap-3">
-            <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
-            <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
-              PumpMe
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden font-label text-xs tracking-[0.18em] text-outline-variant md:block">
-            PREMIUM USER
-          </span>
-          <div className="h-10 w-10 rounded-full border-2 border-primary-container/20 p-0.5">
-            <img
-              alt="Alex Rivers"
-              className="h-full w-full rounded-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOxUFjbsaZbIvq6Lx9umMFtD72C0bsQA5Wa0JYi2R02aunszVkJDVFU2rrDDqQzl46zlSDMZFnYTy8Izn6labgeh0Fcm4rJP7e3o-oBL9BtKZvw9eX7DxOWARCKUkU_CAuNe95ips3nwA1lLVt9om6Bn165YiZLh7cvuspzacQN22ke5afUBo1YbzbXtz6DLqTvzgUiyLrS1cJPk6_ADzYykmGHBTApEh_bZ_RvYCClJnZmp4hU6yR6cigcWX83RzeSBsa5ztDeR7P"
-            />
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
-      <main className="mx-auto max-w-4xl px-6 pt-8 pb-32">
+      <main className="mx-auto max-w-4xl px-6 pt-24 pb-32">
         <section className="mb-12 grid grid-cols-1 items-end gap-8 md:grid-cols-12">
           <div className="flex justify-center md:col-span-4 md:justify-start">
             <div className="group relative">
