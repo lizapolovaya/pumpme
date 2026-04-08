@@ -1,4 +1,5 @@
 import type { BackendRepositories } from '../contracts';
+import { SqliteAnalyticsRepository } from './analytics-repository';
 import { SqliteCalendarRepository } from './calendar-repository';
 import { SqliteDashboardRepository } from './dashboard-repository';
 import { SqliteNutritionRepository } from './nutrition-repository';
@@ -27,6 +28,6 @@ export function createSqliteRepositories(): BackendRepositories {
         readiness: new SqliteReadinessRepository(),
         dashboard: new SqliteDashboardRepository(),
         calendar: new SqliteCalendarRepository(),
-        analytics: notImplementedRepository('AnalyticsRepository') as BackendRepositories['analytics']
+        analytics: new SqliteAnalyticsRepository()
     };
 }

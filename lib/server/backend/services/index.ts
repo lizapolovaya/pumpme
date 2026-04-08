@@ -1,6 +1,7 @@
 import type { BackendServices } from './contracts';
 import { createSqliteRepositories } from '../repositories/sqlite';
 import { getBackendConfig } from '../config';
+import { DefaultAnalyticsService } from './analytics-service';
 import { DefaultCalendarService } from './calendar-service';
 import { DefaultDashboardService } from './dashboard-service';
 import { DefaultNutritionService } from './nutrition-service';
@@ -41,6 +42,6 @@ export function createBackendServices(userId: string): BackendServices {
         calendar: new DefaultCalendarService(userId, repositories.calendar),
         nutrition: new DefaultNutritionService(userId, repositories.nutrition),
         readiness: new DefaultReadinessService(userId, repositories.readiness),
-        analytics: notImplementedService('AnalyticsService') as BackendServices['analytics']
+        analytics: new DefaultAnalyticsService(userId, repositories.analytics)
     };
 }
