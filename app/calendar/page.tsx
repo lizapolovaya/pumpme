@@ -1,81 +1,66 @@
 import { CalendarDays, EllipsisVertical } from 'lucide-react';
 import { AppHeader } from '../components/app-header';
 import { BottomNav } from '../components/bottom-nav';
-
-type CalendarDay = {
-  day: string;
-  muted?: boolean;
-  dots?: number;
-  outlined?: boolean;
-  accent?: boolean;
-  intense?: boolean;
-  selected?: boolean;
-};
-
-const calendarDays: CalendarDay[] = [
-  { day: '25', muted: true },
-  { day: '26', muted: true },
-  { day: '27', muted: true },
-  { day: '28', muted: true },
-  { day: '29', muted: true },
-  { day: '30', muted: true },
-  { day: '1', dots: 1 },
-  { day: '2' },
-  { day: '3', outlined: true, accent: true, dots: 1 },
-  { day: '4', dots: 1 },
-  { day: '5' },
-  { day: '6', intense: true, dots: 2 },
-  { day: '7' },
-  { day: '8' },
-  { day: '9' },
-  { day: '10', dots: 1 },
-  { day: '11' },
-  { day: '12', selected: true },
-  { day: '13', dots: 1 },
-  { day: '14' },
-  { day: '15' },
-  { day: '16' },
-  { day: '17', dots: 1 },
-  { day: '18' },
-  { day: '19', dots: 1 },
-  { day: '20' },
-  { day: '21', intense: true, dots: 1 },
-  { day: '22' }
-];
-
-const sessionDetails = [
-  {
-    name: 'Incline Bench Press',
-    sets: '4 SETS',
-    accent: 'border-secondary',
-    stats: [
-      ['Max Weight', '100KG'],
-      ['Total Reps', '32']
-    ]
-  },
-  {
-    name: 'Weighted Dips',
-    sets: '3 SETS',
-    accent: 'border-primary-dim',
-    stats: [
-      ['Bodyweight +', '20KG'],
-      ['Total Reps', '36']
-    ]
-  },
-  {
-    name: 'Lateral Raises',
-    sets: '5 SETS',
-    accent: 'border-tertiary',
-    stats: [
-      ['Weight', '15KG'],
-      ['Total Reps', '75']
-    ]
-  }
-] as const;
+import { createBackendServices, resolveCurrentUserContext } from '../../lib/server/backend';
 
 const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const exerciseAccentTones = ['border-secondary', 'border-primary-dim', 'border-tertiary'] as const;
 
-export default function CalendarPage() {
+function formatMonthHeading(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(date);
+}
+
+function formatWeekdayDate(dateString: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    weekday: 'long',
+    timeZone: 'UTC'
+  }).format(new Date(`${dateString}T00:00:00.000Z`));
+}
+
+function getDayButtonTone(
+  isCurrentMonth: boolean,
+  isSelected: boolean,
+  intensity: 'none' | 'light' | 'moderate' | 'high',
+  hasVolume: boolean
+): string {
+  if (!isCurrentMonth) {
+    return 'bg-surface-container-low/20 opacity-20';
+  }
+
+  if (isSelected) {
+    return 'scale-105 z-10 bg-primary-container shadow-2xl';
+  }
+
+  if (intensity === 'high') {
+    return 'border border-primary-dim/20 bg-primary-container/10';
+  }
+
+  if (hasVolume) {
+    return 'bg-surface-container-high';
+  }
+
+  return 'bg-surface-container-low hover:bg-surface-container-high';
+}
+
+export default async function CalendarPage() {
+  const { userId } = await resolveCurrentUserContext();
+  const services = createBackendServices(userId);
+  const today = new Date();
+  const selectedDate = today.toISOString().slice(0, 10);
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth() + 1;
+  const calendar = await services.calendar.getMonth(year, month, selectedDate);
+  const monthHeading = formatMonthHeading(new Date(Date.UTC(year, month - 1, 1)));
+  const selectedSession = calendar.selectedDay?.sessions[0] ?? null;
+  const activeDays = calendar.days.filter((day) => day.completedSessionCount > 0).length;
+  const weeklyVolumeKg = calendar.days.reduce((sum, day) => sum + (day.hasVolume ? 1 : 0), 0) * 12.4;
+
   return (
     <>
       <AppHeader />
@@ -85,11 +70,13 @@ export default function CalendarPage() {
           <div className="flex-1">
             <div className="mb-2 flex items-end justify-between">
               <h2 className="font-headline text-4xl font-black tracking-[-0.08em] text-on-surface">
-                OCTOBER <span className="font-light text-primary-dim/50">2023</span>
+                {monthHeading.split(' ')[0].toUpperCase()}{' '}
+                <span className="font-light text-primary-dim/50">{monthHeading.split(' ')[1]}</span>
               </h2>
             </div>
             <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-              Consistency: 84% • 22 Sessions logged
+              Consistency: {Math.round((activeDays / calendar.days.length) * 100)}% •{' '}
+              {calendar.days.reduce((sum, day) => sum + day.sessionCount, 0)} Sessions logged
             </p>
           </div>
 
@@ -99,7 +86,7 @@ export default function CalendarPage() {
                 Weekly Volume
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="font-headline text-2xl font-black text-secondary">42.5</span>
+                <span className="font-headline text-2xl font-black text-secondary">{weeklyVolumeKg.toFixed(1)}</span>
                 <span className="font-label text-[10px] uppercase text-on-surface-variant">Tons</span>
               </div>
             </article>
@@ -108,7 +95,7 @@ export default function CalendarPage() {
                 Active Days
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="font-headline text-2xl font-black text-primary-dim">5/7</span>
+                <span className="font-headline text-2xl font-black text-primary-dim">{activeDays}/28</span>
               </div>
             </article>
           </div>
@@ -126,54 +113,59 @@ export default function CalendarPage() {
                 </div>
               ))}
 
-              {calendarDays.map((item) => {
-                const baseClass = item.muted
-                  ? 'bg-surface-container-low/20 opacity-20'
-                  : item.selected
-                    ? 'scale-105 z-10 bg-primary-container shadow-2xl'
-                    : item.intense
-                      ? 'border border-primary-dim/20 bg-primary-container/10'
-                      : 'bg-surface-container-low hover:bg-surface-container-high';
+              {calendar.days.map((item) => {
+                const date = new Date(`${item.date}T00:00:00.000Z`);
+                const isCurrentMonth = date.getUTCMonth() + 1 === month;
+                const isSelected = item.date === selectedDate;
+                const baseClass = getDayButtonTone(
+                  isCurrentMonth,
+                  isSelected,
+                  item.intensity,
+                  item.hasVolume
+                );
+                const dots = Math.min(2, item.sessionCount);
 
                 return (
                   <button
-                    key={item.day}
+                    key={item.date}
                     type="button"
                     className={`relative aspect-square rounded-2xl transition-colors ${baseClass}`}
                   >
                     <div className="flex h-full flex-col items-center justify-center">
                       <span
                         className={`font-label text-sm ${
-                          item.selected
+                          isSelected
                             ? 'font-black text-on-primary-fixed'
-                            : item.accent || item.intense
+                            : item.intensity !== 'none'
                               ? 'font-bold text-primary-dim'
                               : 'font-bold text-on-surface'
                         }`}
                       >
-                        {item.day}
+                        {date.getUTCDate()}
                       </span>
                     </div>
 
-                    {item.outlined ? (
+                    {item.intensity === 'moderate' ? (
                       <div className="absolute inset-0 rounded-2xl border-2 border-primary-dim/30" />
                     ) : null}
 
-                    {item.selected ? (
+                    {isSelected ? (
                       <div className="absolute -top-1 -right-1 flex h-3 w-3">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-dim opacity-75" />
                         <span className="relative inline-flex h-3 w-3 rounded-full bg-primary-container" />
                       </div>
                     ) : null}
 
-                    {item.dots ? (
+                    {dots ? (
                       <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
-                        {Array.from({ length: item.dots }).map((_, idx) => (
+                        {Array.from({ length: dots }).map((_, idx) => (
                           <div
-                            key={`${item.day}-${idx}`}
+                            key={`${item.date}-${idx}`}
                             className={`h-1.5 w-1.5 rounded-full bg-primary-dim ${
-                              item.intense || item.outlined ? 'shadow-[0_0_8px_#D1FF26]' : ''
-                            } ${item.accent ? 'opacity-100' : item.muted ? 'opacity-20' : item.day === '4' ? 'opacity-40' : ''}`}
+                              item.intensity === 'high' || item.intensity === 'moderate'
+                                ? 'shadow-[0_0_8px_#D1FF26]'
+                                : ''
+                            } ${isCurrentMonth ? 'opacity-100' : 'opacity-20'}`}
                           />
                         ))}
                       </div>
@@ -190,10 +182,10 @@ export default function CalendarPage() {
                 <div className="mb-4 flex items-start justify-between">
                   <div>
                     <span className="font-label text-[10px] font-bold uppercase tracking-[0.3em] text-primary-dim">
-                      Oct 12, Thursday
+                      {formatWeekdayDate(selectedDate)}
                     </span>
                     <h3 className="font-headline text-2xl font-black italic uppercase tracking-[-0.08em]">
-                      Push Day Protocol
+                      {selectedSession?.title ?? 'Rest Day'}
                     </h3>
                   </div>
                   <button type="button" aria-label="Session options" className="text-on-surface-variant">
@@ -206,7 +198,8 @@ export default function CalendarPage() {
                       Duration
                     </span>
                     <span className="font-headline text-lg font-bold">
-                      74<span className="ml-1 text-xs font-normal">MIN</span>
+                      {selectedSession?.durationMinutes ?? 0}
+                      <span className="ml-1 text-xs font-normal">MIN</span>
                     </span>
                   </div>
                   <div className="flex flex-col">
@@ -214,38 +207,55 @@ export default function CalendarPage() {
                       Volume
                     </span>
                     <span className="font-headline text-lg font-bold">
-                      12,400<span className="ml-1 text-xs font-normal">KG</span>
+                      {Math.round(selectedSession?.totalVolumeKg ?? 0).toLocaleString('en-US')}
+                      <span className="ml-1 text-xs font-normal">KG</span>
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex max-h-[400px] flex-col gap-4 overflow-y-auto p-6">
-                {sessionDetails.map((exercise) => (
-                  <article
-                    key={exercise.name}
-                    className={`rounded-2xl border-l-4 bg-surface-container-low p-4 ${exercise.accent}`}
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <h4 className="font-label text-xs font-bold uppercase tracking-[0.14em] text-on-surface">
-                        {exercise.name}
-                      </h4>
-                      <span className="font-label text-[10px] text-on-surface-variant">
-                        {exercise.sets}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {exercise.stats.map(([label, value]) => (
-                        <div key={label} className="rounded-lg bg-background/40 p-2 text-center">
+                {selectedSession ? (
+                  selectedSession.exercises.map((exercise, index) => (
+                    <article
+                      key={exercise.id}
+                      className={`rounded-2xl border-l-4 bg-surface-container-low p-4 ${
+                        exerciseAccentTones[index % exerciseAccentTones.length]
+                      }`}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="font-label text-xs font-bold uppercase tracking-[0.14em] text-on-surface">
+                          {exercise.exerciseName}
+                        </h4>
+                        <span className="font-label text-[10px] text-on-surface-variant">
+                          {exercise.sets.length} SETS
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-background/40 p-2 text-center">
                           <span className="block font-label text-[8px] uppercase text-on-surface-variant">
-                            {label}
+                            Max Weight
                           </span>
-                          <span className="font-headline text-sm font-bold">{value}</span>
+                          <span className="font-headline text-sm font-bold">
+                            {Math.max(...exercise.sets.map((set) => set.weightKg ?? 0)).toLocaleString('en-US')}KG
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </article>
-                ))}
+                        <div className="rounded-lg bg-background/40 p-2 text-center">
+                          <span className="block font-label text-[8px] uppercase text-on-surface-variant">
+                            Total Reps
+                          </span>
+                          <span className="font-headline text-sm font-bold">
+                            {exercise.sets.reduce((sum, set) => sum + (set.reps ?? 0), 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-2xl bg-surface-container-low p-6 text-center text-on-surface-variant">
+                    No session history for this date yet.
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 bg-surface-container-highest p-6">
