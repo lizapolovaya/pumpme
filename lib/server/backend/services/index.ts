@@ -3,8 +3,10 @@ import { createSqliteRepositories } from '../repositories/sqlite';
 import { getBackendConfig } from '../config';
 import { DefaultCalendarService } from './calendar-service';
 import { DefaultDashboardService } from './dashboard-service';
+import { DefaultNutritionService } from './nutrition-service';
 import { DefaultPreferencesService } from './preferences-service';
 import { DefaultProfileService } from './profile-service';
+import { DefaultReadinessService } from './readiness-service';
 import { DefaultWorkoutService } from './workout-service';
 
 function notImplementedService(name: string) {
@@ -37,8 +39,8 @@ export function createBackendServices(userId: string): BackendServices {
         }),
         workouts: new DefaultWorkoutService(userId, repositories.workouts),
         calendar: new DefaultCalendarService(userId, repositories.calendar),
-        nutrition: notImplementedService('NutritionService') as BackendServices['nutrition'],
-        readiness: notImplementedService('ReadinessService') as BackendServices['readiness'],
+        nutrition: new DefaultNutritionService(userId, repositories.nutrition),
+        readiness: new DefaultReadinessService(userId, repositories.readiness),
         analytics: notImplementedService('AnalyticsService') as BackendServices['analytics']
     };
 }
