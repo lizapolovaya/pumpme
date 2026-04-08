@@ -4,33 +4,73 @@ import {
 } from 'lucide-react';
 import { AppHeader } from './components/app-header';
 import { BottomNav } from './components/bottom-nav';
+import { createBackendServices, resolveCurrentUserContext } from '../lib/server/backend';
 
-const readinessScore = 82;
 const circumference = 2 * Math.PI * 40;
-const readinessOffset = circumference - (readinessScore / 100) * circumference;
+const macroTones = {
+  protein: 'bg-primary-dim',
+  carbs: 'bg-secondary',
+  fats: 'bg-tertiary',
+  calories: 'bg-primary'
+} as const;
 
-const planStats = [
-  ['Est. Duration', '75 MIN'],
-  ['Target Volume', '12,400 KG']
-] as const;
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC'
+  }).format(date);
+}
 
-const macros = [
-  { name: 'Protein', current: '145g', target: '180g', width: '80%', tone: 'bg-primary-dim' },
-  { name: 'Carbs', current: '210g', target: '350g', width: '60%', tone: 'bg-secondary' },
-  { name: 'Fats', current: '52g', target: '75g', width: '70%', tone: 'bg-tertiary' }
-] as const;
+function formatMacroValue(value: number, unit: string): string {
+  return `${Math.round(value)}${unit}`;
+}
 
-const weeklyDiscipline = [
-  { day: 'M', height: 'h-8', active: true },
-  { day: 'T', height: 'h-12', active: true },
-  { day: 'W', height: 'h-2', active: false },
-  { day: 'T', height: 'h-10', active: true },
-  { day: 'F', height: 'h-14', active: true },
-  { day: 'S', height: 'h-8', active: true },
-  { day: 'S', height: 'h-2', active: false }
-] as const;
+function getMacroWidth(current: number, target: number): string {
+  if (target <= 0) {
+    return '0%';
+  }
 
-export default function Home() {
+  return `${Math.min(100, Math.max(0, Math.round((current / target) * 100)))}%`;
+}
+
+function getDisciplineHeight(sessionCount: number, completed: boolean): string {
+  if (!sessionCount) {
+    return 'h-2';
+  }
+
+  if (completed && sessionCount > 1) {
+    return 'h-14';
+  }
+
+  if (completed) {
+    return 'h-10';
+  }
+
+  return 'h-6';
+}
+
+function toTitleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export default async function Home() {
+  const { userId } = await resolveCurrentUserContext();
+  const services = createBackendServices(userId);
+  const today = new Date();
+  const todayDate = today.toISOString().slice(0, 10);
+  const dashboard = await services.dashboard.getToday(todayDate);
+
+  const readinessScore = dashboard.readiness.score ?? 0;
+  const readinessOffset = circumference - (readinessScore / 100) * circumference;
+  const planStats = [
+    ['Est. Duration', dashboard.plannedWorkout.estimatedDurationMinutes ? `${dashboard.plannedWorkout.estimatedDurationMinutes} MIN` : 'TBD'],
+    ['Target Volume', dashboard.plannedWorkout.targetVolumeKg ? `${Math.round(dashboard.plannedWorkout.targetVolumeKg).toLocaleString('en-US')} KG` : 'TBD']
+  ] as const;
+  const macros = [dashboard.nutrition.protein, dashboard.nutrition.carbs, dashboard.nutrition.fats];
+  const activeDays = dashboard.weeklyDiscipline.filter((day) => day.completed).length;
+
   return (
     <>
       <AppHeader />
@@ -71,7 +111,7 @@ export default function Home() {
                     {readinessScore}
                   </strong>
                   <span className="mt-0.5 font-label text-[8px] font-bold uppercase tracking-[0.24em] text-primary-dim">
-                    Excellent
+                    {dashboard.readiness.headline}
                   </span>
                 </div>
               </div>
@@ -82,7 +122,7 @@ export default function Home() {
                   Score
                 </h3>
                 <p className="max-w-xs text-sm text-on-surface-variant">
-                  Your CNS is fully recovered. Optimal for high-intensity training today.
+                  {dashboard.readiness.summary}
                 </p>
               </div>
             </div>
@@ -116,7 +156,7 @@ export default function Home() {
                 </h3>
               </div>
               <div className="text-right">
-                <span className="block font-headline text-2xl font-black italic text-primary-dim">5/7</span>
+                <span className="block font-headline text-2xl font-black italic text-primary-dim">{activeDays}/7</span>
                 <span className="block font-label text-[10px] font-bold uppercase text-on-surface-variant">
                   Days Active
                 </span>
@@ -124,21 +164,21 @@ export default function Home() {
             </div>
 
             <div className="flex h-16 items-end justify-between gap-2">
-              {weeklyDiscipline.map((bar) => (
-                <div key={`${bar.day}-${bar.height}`} className="flex flex-1 flex-col items-center gap-2">
+              {dashboard.weeklyDiscipline.map((day) => (
+                <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
                   <div
-                    className={`w-full rounded-full ${bar.height} ${
-                      bar.active
+                    className={`w-full rounded-full ${getDisciplineHeight(day.sessionCount, day.completed)} ${
+                      day.completed
                         ? 'bg-primary-dim shadow-[0_0_15px_rgba(209,255,38,0.5)]'
                         : 'bg-white/10'
                     }`}
                   />
                   <span
                     className={`font-label text-[10px] font-bold ${
-                      bar.active ? 'text-on-surface' : 'text-on-surface-variant'
+                      day.completed ? 'text-on-surface' : 'text-on-surface-variant'
                     }`}
                   >
-                    {bar.day}
+                    {day.label}
                   </span>
                 </div>
               ))}
@@ -153,9 +193,11 @@ export default function Home() {
                   Planned Routine
                 </p>
                 <h3 className="mt-1 font-headline text-3xl font-black tracking-[-0.08em]">
-                  PULL DAY
+                  {dashboard.plannedWorkout.title.toUpperCase()}
                 </h3>
-                <p className="mt-1 text-sm italic text-on-surface-variant">Back &amp; Biceps Focus</p>
+                <p className="mt-1 text-sm italic text-on-surface-variant">
+                  {dashboard.plannedWorkout.focus ?? formatDate(today)}
+                </p>
               </div>
               <ArrowUpRight className="h-5 w-5 text-secondary" strokeWidth={2.4} />
             </div>
@@ -180,7 +222,12 @@ export default function Home() {
                 </h3>
               </div>
               <div className="text-right">
-                <strong className="block font-label text-2xl font-black">2,450</strong>
+                <strong className="block font-label text-2xl font-black">
+                  {Math.max(
+                    0,
+                    Math.round(dashboard.nutrition.calories.target - dashboard.nutrition.calories.current)
+                  ).toLocaleString('en-US')}
+                </strong>
                 <span className="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
                   kcal left
                 </span>
@@ -189,15 +236,18 @@ export default function Home() {
 
             <div className="space-y-4">
               {macros.map((macro) => (
-                <div key={macro.name} className="space-y-1.5">
+                <div key={macro.key} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-4 font-label text-[11px] font-bold uppercase tracking-[0.14em]">
-                    <span className="text-on-surface-variant">{macro.name}</span>
+                    <span className="text-on-surface-variant">{toTitleCase(macro.key)}</span>
                     <strong>
-                      {macro.current} / {macro.target}
+                      {formatMacroValue(macro.current, macro.unit)} / {formatMacroValue(macro.target, macro.unit)}
                     </strong>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
-                    <div className={`h-full rounded-full ${macro.tone}`} style={{ width: macro.width }} />
+                    <div
+                      className={`h-full rounded-full ${macroTones[macro.key]}`}
+                      style={{ width: getMacroWidth(macro.current, macro.target) }}
+                    />
                   </div>
                 </div>
               ))}

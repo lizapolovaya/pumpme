@@ -1,4 +1,6 @@
 import type {
+    AddWorkoutExerciseInput,
+    AddWorkoutSetInput,
     BootstrapResponse,
     CalendarMonthDto,
     NutritionDayDto,
@@ -12,6 +14,7 @@ import type {
     UpdatePreferencesInput,
     UpdateProfileInput,
     UpdateReadinessDayInput,
+    UpdateWorkoutExerciseInput,
     UpdateWorkoutSessionInput,
     UpdateWorkoutSetInput,
     WorkoutSessionDto,
@@ -38,7 +41,12 @@ export interface WorkoutService {
     getSessionByDate(date: string): Promise<WorkoutSessionDto | null>;
     startSession(input: StartWorkoutSessionInput): Promise<WorkoutSessionDto>;
     updateSession(sessionId: string, input: UpdateWorkoutSessionInput): Promise<WorkoutSessionDto>;
+    addExercise(sessionId: string, input: AddWorkoutExerciseInput): Promise<WorkoutSessionDto>;
+    updateExercise(sessionId: string, exerciseRowId: string, input: UpdateWorkoutExerciseInput): Promise<WorkoutSessionDto>;
+    removeExercise(sessionId: string, exerciseRowId: string): Promise<WorkoutSessionDto>;
+    addSet(sessionId: string, exerciseRowId: string, input: AddWorkoutSetInput): Promise<WorkoutSessionDto>;
     updateSet(sessionId: string, setId: string, input: UpdateWorkoutSetInput): Promise<WorkoutSessionDto>;
+    removeSet(sessionId: string, setId: string): Promise<WorkoutSessionDto>;
     finishSession(sessionId: string): Promise<WorkoutSessionDto>;
 }
 
