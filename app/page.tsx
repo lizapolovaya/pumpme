@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   ArrowUpRight,
   Bolt,
-  Menu,
   Play,
 } from 'lucide-react';
 import { BottomNav } from './components/bottom-nav';
@@ -37,18 +36,13 @@ export default function Home() {
     <>
       <header className="fixed inset-x-0 top-0 z-30 bg-background">
         <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between bg-surface-container-low/80 px-6 backdrop-blur-md md:max-w-5xl">
-          <div className="flex flex-1 justify-start">
-            <button type="button" aria-label="Open menu" className="text-primary-container md:hidden">
-              <Menu className="h-5 w-5" strokeWidth={2.4} />
-            </button>
-          </div>
           <div className="flex items-center gap-3">
             <Bolt className="h-5 w-5 text-primary-container" strokeWidth={2.2} />
             <h1 className="font-headline text-xl font-bold italic uppercase tracking-[-0.08em] text-primary-container">
               PumpMe
             </h1>
           </div>
-          <div className="flex flex-1 justify-end">
+          <div className="flex items-center gap-4">
             <Link
               href="/profile"
               className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary-container/20 transition-transform duration-150 active:scale-95"
