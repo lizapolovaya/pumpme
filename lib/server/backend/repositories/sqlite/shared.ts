@@ -156,6 +156,7 @@ export function ensureExerciseCatalog(db: Database.Database): void {
 }
 
 export function ensureDefaultTemplates(db: Database.Database, userId: string): void {
+    ensureUserScaffold(db, userId);
     ensureExerciseCatalog(db);
 
     const insertTemplate = db.prepare(`
