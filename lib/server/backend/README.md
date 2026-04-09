@@ -5,7 +5,7 @@ PumpMe's backend is structured so route handlers and pages talk to service contr
 ## Drivers
 
 - `sqlite` is the current working datastore.
-- `supabase` is a prepared migration target with explicit config validation and a repository provider slot.
+- `supabase` is a Postgres-backed datastore via Supabase. The repository adapters live under `lib/server/backend/repositories/supabase/`.
 
 ## Environment
 
@@ -20,8 +20,7 @@ If `PUMPME_SQLITE_PATH` is not set, local development uses `./data/pumpme.sqlite
 ## Migration Path
 
 1. Keep route handlers and pages on `createBackendServices()`.
-2. Implement the repository methods under `lib/server/backend/repositories/supabase/`.
-3. Create the corresponding tables in Supabase using [supabase-schema.sql](/home/liza/pumpme/lib/server/backend/db/supabase-schema.sql).
-4. Switch `PUMPME_STORAGE_DRIVER` to `supabase` when the provider implementation is complete.
+2. Create the corresponding tables in Supabase using [supabase-schema.sql](/home/liza/pumpme/lib/server/backend/db/supabase-schema.sql).
+3. Switch `PUMPME_STORAGE_DRIVER` to `supabase` and configure `PUMPME_SUPABASE_URL` + a key.
 
-Until the Supabase repositories are implemented, selecting the `supabase` driver will fail with an explicit error naming the missing adapter.
+Note: the current Supabase adapter assumes server-side access (API routes / server components) and works best with `PUMPME_SUPABASE_SERVICE_ROLE_KEY` unless you have RLS policies in place.

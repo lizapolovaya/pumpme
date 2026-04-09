@@ -1,5 +1,14 @@
 import type { BackendConfig } from '../../config';
 import type { BackendRepositories } from '../contracts';
+import { createSupabaseServerClient } from './client';
+import { SupabaseAnalyticsRepository } from './analytics-repository';
+import { SupabaseCalendarRepository } from './calendar-repository';
+import { SupabaseDashboardRepository } from './dashboard-repository';
+import { SupabaseNutritionRepository } from './nutrition-repository';
+import { SupabasePreferencesRepository } from './preferences-repository';
+import { SupabaseProfileRepository } from './profile-repository';
+import { SupabaseReadinessRepository } from './readiness-repository';
+import { SupabaseWorkoutRepository } from './workout-repository';
 
 function assertSupabaseConfig(config: BackendConfig) {
     if (!config.supabase.url) {
@@ -13,33 +22,18 @@ function assertSupabaseConfig(config: BackendConfig) {
     }
 }
 
-function createNotImplementedRepository<TName extends keyof BackendRepositories>(
-    name: TName
-): BackendRepositories[TName] {
-    return new Proxy(
-        {},
-        {
-            get(_target, property) {
-                throw new Error(
-                    `Supabase ${String(name)} repository is not implemented yet. ` +
-                        `The backend is prepared for a provider swap, but ${String(property)} still needs a Supabase adapter.`
-                );
-            }
-        }
-    ) as BackendRepositories[TName];
-}
-
 export function createSupabaseRepositories(config: BackendConfig): BackendRepositories {
     assertSupabaseConfig(config);
+    const client = createSupabaseServerClient(config.supabase);
 
     return {
-        profile: createNotImplementedRepository('profile'),
-        preferences: createNotImplementedRepository('preferences'),
-        workouts: createNotImplementedRepository('workouts'),
-        nutrition: createNotImplementedRepository('nutrition'),
-        readiness: createNotImplementedRepository('readiness'),
-        dashboard: createNotImplementedRepository('dashboard'),
-        calendar: createNotImplementedRepository('calendar'),
-        analytics: createNotImplementedRepository('analytics')
+        profile: new SupabaseProfileRepository(client),
+        preferences: new SupabasePreferencesRepository(client),
+        workouts: new SupabaseWorkoutRepository(client),
+        nutrition: new SupabaseNutritionRepository(client),
+        readiness: new SupabaseReadinessRepository(client),
+        dashboard: new SupabaseDashboardRepository(client),
+        calendar: new SupabaseCalendarRepository(client),
+        analytics: new SupabaseAnalyticsRepository(client)
     };
 }
