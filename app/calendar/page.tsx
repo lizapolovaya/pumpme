@@ -76,7 +76,22 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     const selectedDate = params?.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : fallbackDate;
     const calendar = await services.calendar.getMonth(year, month, selectedDate);
     const monthHeading = formatMonthHeading(new Date(Date.UTC(year, month - 1, 1)));
-    const selectedSession = calendar.selectedDay?.sessions[0] ?? null;
+    const rawSelectedSession = calendar.selectedDay?.sessions[0] ?? null;
+    const selectedSession = rawSelectedSession && (
+        rawSelectedSession.status === 'completed' ||
+        rawSelectedSession.totalVolumeKg !== null ||
+        rawSelectedSession.exercises.some((exercise) =>
+            exercise.sets.some(
+                (set) =>
+                    set.completed ||
+                    set.weightKg !== null ||
+                    set.reps !== null ||
+                    set.rpe !== null
+            )
+        )
+    )
+        ? rawSelectedSession
+        : null;
     const activeDays = calendar.days.filter((day) => day.completedSessionCount > 0).length;
     const weeklyVolumeKg = calendar.days.reduce((sum, day) => sum + (day.hasVolume ? 1 : 0), 0) * 12.4;
 
@@ -280,6 +295,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                             </div>
 
                             <div className="flex gap-3 bg-surface-container-highest p-6">
+                                <Link
+                                    className="flex-1 rounded-xl border border-outline-variant/20 bg-surface-container-highest py-3 text-center font-headline text-sm font-black italic uppercase tracking-[-0.04em] text-on-surface-variant transition hover:bg-surface-bright"
+                                    href={`/workouts?date=${selectedDate}`}
+                                >
+                                    Open Workout
+                                </Link>
                                 <RerunSessionButton selectedSession={selectedSession} />
                             </div>
                         </section>

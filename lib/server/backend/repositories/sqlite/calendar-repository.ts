@@ -36,9 +36,39 @@ export class SqliteCalendarRepository implements CalendarRepository {
             .prepare(`
                 SELECT
                     date,
-                    COUNT(*) AS sessionCount,
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM workout_sets sets
+                                  JOIN workout_session_exercises exercises
+                                    ON exercises.id = sets.session_exercise_id
+                                  WHERE exercises.session_id = workout_sessions.id
+                                    AND (
+                                        sets.weight_kg IS NOT NULL
+                                        OR sets.reps IS NOT NULL
+                                        OR sets.rpe IS NOT NULL
+                                        OR sets.completed = 1
+                                    )
+                              )
+                            THEN 1
+                            ELSE 0
+                        END
+                    ) AS sessionCount,
                     SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completedCount,
-                    SUM(total_volume_kg) AS totalVolumeKg
+                    SUM(
+                        CASE
+                            WHEN status = 'completed' THEN COALESCE(total_volume_kg, 0)
+                            ELSE (
+                                SELECT COALESCE(SUM(COALESCE(sets.weight_kg, 0) * COALESCE(sets.reps, 0)), 0)
+                                FROM workout_sets sets
+                                JOIN workout_session_exercises exercises
+                                  ON exercises.id = sets.session_exercise_id
+                                WHERE exercises.session_id = workout_sessions.id
+                            )
+                        END
+                    ) AS totalVolumeKg
                 FROM workout_sessions
                 WHERE user_id = ?
                   AND date BETWEEN ? AND ?
@@ -86,7 +116,7 @@ export class SqliteCalendarRepository implements CalendarRepository {
 
     async getDayDetail(userId: string, date: string) {
         const normalizedDate = toIsoDate(date);
-        const session = await this.workoutRepository.getSessionByDate(userId, normalizedDate);
+        const session = await this.workoutRepository.findSessionByDate(userId, normalizedDate);
 
         return {
             date: normalizedDate,

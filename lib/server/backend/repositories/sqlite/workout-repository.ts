@@ -118,6 +118,18 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         return this.getSessionById(userId, session.id);
     }
 
+    async findSessionByDate(userId: string, date: string): Promise<WorkoutSessionDto | null> {
+        const db = getSqliteRepositoryDatabase();
+        const normalizedDate = toIsoDate(date);
+
+        const session = this.findSessionRow(db, userId, normalizedDate);
+        if (!session) {
+            return null;
+        }
+
+        return this.getSessionById(userId, session.id);
+    }
+
     async startSession(userId: string, input: StartWorkoutSessionInput): Promise<WorkoutSessionDto> {
         const db = getSqliteRepositoryDatabase();
         const date = toIsoDate(input.date);

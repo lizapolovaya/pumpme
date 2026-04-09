@@ -23,6 +23,10 @@ export class DefaultWorkoutService implements WorkoutService {
         return this.repository.getSessionByDate(this.userId, date);
     }
 
+    async findSessionByDate(date: string) {
+        return this.repository.findSessionByDate(this.userId, date);
+    }
+
     async startSession(input: StartWorkoutSessionInput) {
         return this.repository.startSession(this.userId, input);
     }
