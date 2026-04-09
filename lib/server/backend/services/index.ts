@@ -1,5 +1,5 @@
 import type { BackendServices } from './contracts';
-import { createSqliteRepositories } from '../repositories/sqlite';
+import { createBackendRepositories } from '../repositories';
 import { getBackendConfig } from '../config';
 import { DefaultAnalyticsService } from './analytics-service';
 import { DefaultCalendarService } from './calendar-service';
@@ -23,12 +23,7 @@ function notImplementedService(name: string) {
 
 export function createBackendServices(userId: string): BackendServices {
     const config = getBackendConfig();
-
-    if (config.storageDriver !== 'sqlite') {
-        throw new Error(`Unsupported storage driver: ${config.storageDriver}`);
-    }
-
-    const repositories = createSqliteRepositories();
+    const repositories = createBackendRepositories(config);
 
     return {
         profile: new DefaultProfileService(userId, repositories.profile),
