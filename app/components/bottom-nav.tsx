@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { Bolt, CalendarDays, Dumbbell, TrendingUp } from 'lucide-react';
+import { Bolt, CalendarDays, Dumbbell, TrendingUp, User } from 'lucide-react';
 
 type BottomNavProps = {
-  active: 'today' | 'workouts' | 'calendar' | 'progress';
+  active: 'today' | 'workouts' | 'calendar' | 'progress' | 'profile';
 };
 
 const itemBase =
@@ -58,6 +58,19 @@ export function BottomNav({ active }: BottomNavProps) {
           <TrendingUp className={`h-5 w-5 ${active === 'progress' ? 'fill-current' : ''}`} strokeWidth={2.1} />
           <span className="font-headline text-[10px] font-medium uppercase tracking-[0.18em]">
             Progress
+          </span>
+        </Link>
+        <Link
+          href="/profile"
+          className={`${itemBase} ${
+            active === 'profile'
+              ? 'rounded-xl bg-surface-container-high text-primary-container'
+              : 'text-slate-500 hover:text-primary-container'
+          }`}
+        >
+          <User className={`h-5 w-5 ${active === 'profile' ? 'fill-current' : ''}`} strokeWidth={2.1} />
+          <span className="font-headline text-[10px] font-medium uppercase tracking-[0.18em]">
+            Profile
           </span>
         </Link>
       </div>

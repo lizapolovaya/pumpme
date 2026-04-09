@@ -162,13 +162,13 @@ export default async function ProgressPage() {
               </p>
             </div>
             <div className="relative z-10 mt-6 flex items-center gap-4">
-              <button
+              <a
                 className="flex items-center gap-1 font-label text-xs font-bold uppercase tracking-[0.18em] text-primary-dim transition-all hover:gap-2"
-                type="button"
+                href="#performance-logs"
               >
                 View Detailed Insights
                 <MoveRight className="h-3.5 w-3.5" strokeWidth={2.2} />
-              </button>
+              </a>
             </div>
           </section>
         </div>
@@ -306,7 +306,7 @@ export default async function ProgressPage() {
           </section>
         </div>
 
-        <section className="space-y-4">
+        <section id="performance-logs" className="space-y-4">
           <h3 className="font-label text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">
             Performance Logs
           </h3>

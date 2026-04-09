@@ -1,9 +1,9 @@
 import {
   ArrowUpRight,
-  Play,
 } from 'lucide-react';
 import { AppHeader } from './components/app-header';
 import { BottomNav } from './components/bottom-nav';
+import { StartWorkoutButton } from './components/start-workout-button';
 import { createBackendServices, resolveCurrentUserContext } from '../lib/server/backend';
 
 const circumference = 2 * Math.PI * 40;
@@ -131,15 +131,14 @@ export default async function Home() {
         </section>
 
         <section>
-          <button
-            className="flex w-full items-center justify-center gap-4 rounded-2xl bg-linear-to-r from-primary to-primary-container px-6 py-6 text-on-primary-fixed shadow-lime transition active:scale-[0.98]"
-            type="button"
-          >
-            <span className="font-headline text-2xl font-black italic uppercase tracking-[-0.08em]">
-              Start Workout
-            </span>
-            <Play className="h-6 w-6 fill-current" strokeWidth={2.4} />
-          </button>
+          <StartWorkoutButton
+            date={todayDate}
+            focus={dashboard.plannedWorkout.focus}
+            sessionId={dashboard.plannedWorkout.sessionId}
+            sessionStatus={dashboard.plannedWorkout.status}
+            templateId={dashboard.plannedWorkout.templateId}
+            title={dashboard.plannedWorkout.title}
+          />
         </section>
 
         <section className="grid gap-6 md:grid-cols-2">
