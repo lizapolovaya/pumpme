@@ -9,17 +9,26 @@ type ProfileRow = {
     email: string | null;
     display_name: string;
     avatar_url: string | null;
-    user_metrics: Array<{
-        age: number | null;
-        primary_goal: string;
-        height_cm: number | null;
-        weight_kg: number | null;
-        step_goal: number | null;
-    }>;
+    user_metrics:
+        | {
+              age: number | null;
+              primary_goal: string;
+              height_cm: number | null;
+              weight_kg: number | null;
+              step_goal: number | null;
+          }
+        | Array<{
+              age: number | null;
+              primary_goal: string;
+              height_cm: number | null;
+              weight_kg: number | null;
+              step_goal: number | null;
+          }>
+        | null;
 };
 
 function mapProfileRow(row: ProfileRow) {
-    const metrics = row.user_metrics[0];
+    const metrics = Array.isArray(row.user_metrics) ? row.user_metrics[0] : row.user_metrics;
     if (!metrics) {
         throw new Error('Profile metrics missing');
     }
