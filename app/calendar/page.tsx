@@ -80,6 +80,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     const selectedSession = rawSelectedSession && (
         rawSelectedSession.status === 'completed' ||
         rawSelectedSession.totalVolumeKg !== null ||
+        rawSelectedSession.exercises.length > 0 ||
         rawSelectedSession.exercises.some((exercise) =>
             exercise.sets.some(
                 (set) =>

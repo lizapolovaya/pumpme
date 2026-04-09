@@ -23,6 +23,10 @@ function hasLoggedEntries(session: Parameters<typeof WorkoutSessionClient>[0]['i
         return true;
     }
 
+    if (session.exercises.length > 0) {
+        return true;
+    }
+
     return session.exercises.some((exercise) =>
         exercise.sets.some(
             (set) =>

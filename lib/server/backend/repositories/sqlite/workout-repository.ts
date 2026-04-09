@@ -122,7 +122,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         const db = getSqliteRepositoryDatabase();
         const normalizedDate = toIsoDate(date);
 
-        const session = this.findSessionRow(db, userId, normalizedDate);
+        const session = this.findSessionRowWithEntries(db, userId, normalizedDate);
         if (!session) {
             return null;
         }
@@ -458,6 +458,40 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
                 SELECT id, template_id, date, title, focus, status, duration_minutes, total_volume_kg, estimated_burn_kcal
                 FROM workout_sessions
                 WHERE user_id = ? AND date = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            `)
+            .get(userId, date) as SessionRow | undefined;
+    }
+
+    private findSessionRowWithEntries(db: ReturnType<typeof getSqliteRepositoryDatabase>, userId: string, date: string) {
+        return db
+            .prepare(`
+                SELECT id, template_id, date, title, focus, status, duration_minutes, total_volume_kg, estimated_burn_kcal
+                FROM workout_sessions
+                WHERE user_id = ? AND date = ?
+                  AND (
+                      status = 'completed'
+                      OR total_volume_kg IS NOT NULL
+                      OR EXISTS (
+                          SELECT 1
+                          FROM workout_session_exercises exercises
+                          WHERE exercises.session_id = workout_sessions.id
+                      )
+                      OR EXISTS (
+                          SELECT 1
+                          FROM workout_sets sets
+                          JOIN workout_session_exercises exercises
+                            ON exercises.id = sets.session_exercise_id
+                          WHERE exercises.session_id = workout_sessions.id
+                            AND (
+                                sets.weight_kg IS NOT NULL
+                                OR sets.reps IS NOT NULL
+                                OR sets.rpe IS NOT NULL
+                                OR sets.completed = 1
+                            )
+                      )
+                  )
                 ORDER BY created_at DESC
                 LIMIT 1
             `)

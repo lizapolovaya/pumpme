@@ -41,6 +41,11 @@ export class SqliteCalendarRepository implements CalendarRepository {
                             WHEN status = 'completed'
                               OR EXISTS (
                                   SELECT 1
+                                  FROM workout_session_exercises exercises
+                                  WHERE exercises.session_id = workout_sessions.id
+                              )
+                              OR EXISTS (
+                                  SELECT 1
                                   FROM workout_sets sets
                                   JOIN workout_session_exercises exercises
                                     ON exercises.id = sets.session_exercise_id

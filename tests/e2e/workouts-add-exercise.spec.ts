@@ -24,5 +24,5 @@ test('adds an exercise to the workout session', async ({ page }) => {
 
     await expect(page.getByText('Exercise added.')).toBeVisible();
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole('heading', { name: 'Lat Pulldown' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Lat Pulldown' }).first()).toBeVisible();
 });
