@@ -14,6 +14,7 @@ Next.js 16 fitness dashboard using the App Router, Tailwind CSS v4, and Progress
 - Default backend driver: `sqlite`
 - Driver switch: `PUMPME_STORAGE_DRIVER=sqlite|supabase`
 - SQLite path override: `PUMPME_SQLITE_PATH=/abs/path/to/pumpme.sqlite`
+- Vercel default SQLite path: temp storage under `/tmp/pumpme.sqlite`
 - Supabase envs reserved for the migration path:
   - `PUMPME_SUPABASE_URL`
   - `PUMPME_SUPABASE_ANON_KEY`

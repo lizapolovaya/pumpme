@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { SQLITE_MIGRATIONS } from './migrations';
@@ -8,7 +9,15 @@ type SQLiteDatabase = InstanceType<typeof Database>;
 let database: SQLiteDatabase | null = null;
 
 export function getSqlitePath(): string {
-    return process.env.PUMPME_SQLITE_PATH ?? path.join(process.cwd(), 'data', 'pumpme.sqlite');
+    if (process.env.PUMPME_SQLITE_PATH) {
+        return process.env.PUMPME_SQLITE_PATH;
+    }
+
+    if (process.env.VERCEL === '1') {
+        return path.join(os.tmpdir(), 'pumpme.sqlite');
+    }
+
+    return path.join(process.cwd(), 'data', 'pumpme.sqlite');
 }
 
 export function getDatabase(): SQLiteDatabase {

@@ -15,6 +15,8 @@ PumpMe's backend is structured so route handlers and pages talk to service contr
 - `PUMPME_SUPABASE_ANON_KEY=...`
 - `PUMPME_SUPABASE_SERVICE_ROLE_KEY=...`
 
+If `PUMPME_SQLITE_PATH` is not set, local development uses `./data/pumpme.sqlite`. On Vercel, the backend falls back to `/tmp/pumpme.sqlite` so the app can run on a writable filesystem.
+
 ## Migration Path
 
 1. Keep route handlers and pages on `createBackendServices()`.
