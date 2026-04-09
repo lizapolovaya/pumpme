@@ -172,6 +172,17 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         const db = getSqliteRepositoryDatabase();
         this.requireSessionRow(db, userId, sessionId);
 
+        db.prepare(`
+            INSERT INTO exercise_definitions (id, name, muscle_group, equipment)
+            VALUES (@id, @name, NULL, NULL)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                updated_at = CURRENT_TIMESTAMP
+        `).run({
+            id: input.exerciseId,
+            name: input.exerciseName
+        });
+
         const nextOrder = this.getNextOrder(
             db,
             'SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM workout_session_exercises WHERE session_id = ?',

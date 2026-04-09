@@ -9,7 +9,6 @@ import {
     Trash2,
     TrendingUp
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 import type { WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/backend/types';
 
@@ -45,6 +44,10 @@ function slugifyExerciseName(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'custom-exercise';
 }
 
+function createExerciseIdFromName(exerciseName: string): string {
+    return `exercise-${slugifyExerciseName(exerciseName)}`;
+}
+
 function getSessionVolume(session: WorkoutSessionDto): number {
     return session.exercises.reduce(
         (sum, exercise) =>
@@ -71,12 +74,13 @@ export function WorkoutSessionClient({
     initialSession,
     templates
 }: WorkoutSessionClientProps) {
-    const router = useRouter();
     const [session, setSession] = useState(initialSession);
     const [saveState, setSaveState] = useState<SaveState>({
         error: null,
         message: null
     });
+    const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false);
+    const [exerciseDraftName, setExerciseDraftName] = useState('');
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
 
@@ -94,7 +98,11 @@ export function WorkoutSessionClient({
         return response.json() as Promise<WorkoutSessionDto>;
     }
 
-    function handleMutation(action: () => Promise<WorkoutSessionDto>, successMessage: string) {
+    function handleMutation(
+        action: () => Promise<WorkoutSessionDto>,
+        successMessage: string,
+        afterSuccess?: (nextSession: WorkoutSessionDto) => void
+    ) {
         startTransition(async () => {
             setSaveState({
                 error: null,
@@ -108,7 +116,7 @@ export function WorkoutSessionClient({
                     error: null,
                     message: successMessage
                 });
-                router.refresh();
+                afterSuccess?.(nextSession);
             } catch (error) {
                 setSaveState({
                     error: error instanceof Error ? error.message : 'Unable to update workout',
@@ -255,19 +263,30 @@ export function WorkoutSessionClient({
         );
     }
 
-    function handleAddExercise() {
-        const availableTemplates = templates.find((template) => template.id === session.templateId);
-        const suggestedExercises = availableTemplates?.exercises.map((exercise) => exercise.exerciseName).join(', ');
-        const promptText = suggestedExercises
-            ? `Exercise name. Suggested: ${suggestedExercises}`
-            : 'Exercise name';
-        const exerciseName = window.prompt(promptText, '');
+    function handleAddExerciseOpen() {
+        setSaveState({
+            error: null,
+            message: null
+        });
+        setExerciseDraftName('');
+        setIsAddExerciseOpen(true);
+    }
 
-        if (!exerciseName || exerciseName.trim().length === 0) {
+    function handleAddExerciseClose() {
+        setIsAddExerciseOpen(false);
+        setExerciseDraftName('');
+    }
+
+    function submitAddExercise(exerciseId: string, rawExerciseName: string) {
+        const trimmedName = rawExerciseName.trim();
+
+        if (!trimmedName) {
+            setSaveState({
+                error: 'Exercise name is required.',
+                message: null
+            });
             return;
         }
-
-        const trimmedName = exerciseName.trim();
 
         handleMutation(
             () =>
@@ -277,11 +296,14 @@ export function WorkoutSessionClient({
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        exerciseId: slugifyExerciseName(trimmedName),
+                        exerciseId,
                         exerciseName: trimmedName
                     })
                 }),
-            'Exercise added.'
+            'Exercise added.',
+            () => {
+                handleAddExerciseClose();
+            }
         );
     }
 
@@ -472,7 +494,7 @@ export function WorkoutSessionClient({
             <button
                 className="group mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-high py-5 font-headline font-bold text-primary-container transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isCompleted || isPending}
-                onClick={handleAddExercise}
+                onClick={handleAddExerciseOpen}
                 type="button"
             >
                 <span className="rounded-full bg-primary-container p-1 text-on-primary-fixed transition-transform group-hover:rotate-90">
@@ -480,6 +502,103 @@ export function WorkoutSessionClient({
                 </span>
                 Add Exercise
             </button>
+
+            {isAddExerciseOpen ? (
+                <div
+                    className="fixed inset-0 z-[100] flex items-end justify-center bg-background/80 px-4 pb-8 pt-24 backdrop-blur-sm md:items-center md:p-8"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Add exercise"
+                >
+                    <div className="w-full max-w-md overflow-hidden rounded-3xl border border-outline-variant/10 bg-surface-container-low shadow-ambient">
+                        <div className="border-b border-outline-variant/10 p-6">
+                            <h2 className="font-headline text-2xl font-black italic uppercase tracking-[-0.06em]">
+                                Add Exercise
+                            </h2>
+                            <p className="mt-1 text-sm text-on-surface-variant">
+                                Add a movement to today’s session.
+                            </p>
+                        </div>
+
+                        <form
+                            className="space-y-5 p-6"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        submitAddExercise(createExerciseIdFromName(exerciseDraftName), exerciseDraftName);
+                                    }}
+                        >
+                            <div className="space-y-2">
+                                <label
+                                    className="font-label text-[10px] font-bold uppercase tracking-[0.22em] text-on-surface-variant"
+                                    htmlFor="exerciseName"
+                                >
+                                    Exercise Name
+                                </label>
+                                <input
+                                    id="exerciseName"
+                                    className="w-full rounded-2xl border border-outline-variant/20 bg-surface-container-highest px-4 py-3 font-body font-semibold text-on-surface outline-none focus:border-primary-dim/60 focus:ring-1 focus:ring-primary-dim/30"
+                                    autoFocus
+                                    disabled={isPending}
+                                    onChange={(event) => setExerciseDraftName(event.target.value)}
+                                    placeholder="e.g. Lat Pulldown"
+                                    type="text"
+                                    value={exerciseDraftName}
+                                />
+                            </div>
+
+                            {session.templateId ? (
+                                <div className="space-y-2">
+                                    <p className="font-label text-[10px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">
+                                        Suggested
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {templates
+                                            .find((template) => template.id === session.templateId)
+                                            ?.exercises.filter(
+                                                (exercise) =>
+                                                    !session.exercises.some(
+                                                        (sessionExercise) =>
+                                                            sessionExercise.exerciseName.toLowerCase() ===
+                                                            exercise.exerciseName.toLowerCase()
+                                                    )
+                                            )
+                                            .slice(0, 6)
+                                            .map((exercise) => (
+                                                <button
+                                                    key={exercise.id}
+                                                    className="rounded-full border border-outline-variant/20 bg-surface-container-highest px-3 py-1.5 text-sm font-semibold text-on-surface transition hover:border-primary-dim/50 hover:text-primary-dim disabled:opacity-60"
+                                                    disabled={isPending}
+                                                    onClick={() => submitAddExercise(exercise.exerciseId, exercise.exerciseName)}
+                                                    type="button"
+                                                >
+                                                    {exercise.exerciseName}
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    className="flex-1 rounded-2xl border border-outline-variant/20 bg-surface-container-highest px-4 py-3 font-headline text-sm font-black uppercase tracking-[0.08em] text-on-surface-variant transition hover:bg-surface-bright disabled:opacity-60"
+                                    disabled={isPending}
+                                    onClick={handleAddExerciseClose}
+                                    type="button"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="flex-1 rounded-2xl bg-linear-to-br from-primary to-primary-container px-4 py-3 font-headline text-sm font-black uppercase tracking-[0.08em] text-on-primary-fixed shadow-lg shadow-primary-container/20 transition active:scale-95 disabled:opacity-60"
+                                    disabled={isPending}
+                                    type="submit"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            ) : null}
 
             <div className="mt-12 mb-10">
                 <button

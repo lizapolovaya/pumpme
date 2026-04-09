@@ -3,4 +3,7 @@ node_modules
 data/
 *.swp
 .codex/
+.playwright/
+.playwright-mcp/
+test-results/
 *:Zone.Identifier
