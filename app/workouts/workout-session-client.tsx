@@ -14,6 +14,7 @@ import type { WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/bac
 
 type WorkoutSessionClientProps = {
     activateOnMount: boolean;
+    allowEditingCompleted?: boolean;
     initialSession: WorkoutSessionDto;
     templates: WorkoutTemplateDto[];
 };
@@ -71,6 +72,7 @@ function getEstimatedBurn(session: WorkoutSessionDto): number {
 
 export function WorkoutSessionClient({
     activateOnMount,
+    allowEditingCompleted = false,
     initialSession,
     templates
 }: WorkoutSessionClientProps) {
@@ -83,6 +85,7 @@ export function WorkoutSessionClient({
     const [exerciseDraftName, setExerciseDraftName] = useState('');
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
+    const isReadOnly = isPending || (isCompleted && !allowEditingCompleted);
 
     async function requestSession(
         input: RequestInfo | URL,
@@ -336,7 +339,7 @@ export function WorkoutSessionClient({
                         {session.title}
                         <button
                             className="text-primary-container disabled:opacity-50"
-                            disabled={isCompleted || isPending}
+                            disabled={isReadOnly}
                             onClick={handleRenameWorkout}
                             type="button"
                         >
@@ -406,7 +409,7 @@ export function WorkoutSessionClient({
                                 </div>
                                 <button
                                     className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
-                                    disabled={isCompleted || isPending}
+                                    disabled={isReadOnly}
                                     onClick={() => handleExerciseAction(exercise.id, exercise.exerciseName)}
                                     type="button"
                                 >
@@ -436,7 +439,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.weightKg ?? ''}
-                                                    disabled={isCompleted || isPending}
+                                                    disabled={isReadOnly}
                                                     onBlur={(event) => handleSetChange(set.id, 'weightKg', event.target.value)}
                                                     type="number"
                                                 />
@@ -445,7 +448,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.reps ?? ''}
-                                                    disabled={isCompleted || isPending}
+                                                    disabled={isReadOnly}
                                                     onBlur={(event) => handleSetChange(set.id, 'reps', event.target.value)}
                                                     type="number"
                                                 />
@@ -454,7 +457,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.rpe ?? ''}
-                                                    disabled={isCompleted || isPending}
+                                                    disabled={isReadOnly}
                                                     max="10"
                                                     min="1"
                                                     onBlur={(event) => handleSetChange(set.id, 'rpe', event.target.value)}
@@ -465,7 +468,7 @@ export function WorkoutSessionClient({
                                             <div className="col-span-1 flex justify-end">
                                                 <button
                                                     className="text-error disabled:opacity-40"
-                                                    disabled={isCompleted || isPending}
+                                                    disabled={isReadOnly}
                                                     onClick={() => handleRemoveSet(set.id)}
                                                     type="button"
                                                 >
@@ -478,7 +481,7 @@ export function WorkoutSessionClient({
 
                                 <button
                                     className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-outline-variant py-3 font-label text-sm font-bold text-on-surface-variant transition-all hover:border-primary-container/50 hover:bg-primary-container/5 disabled:cursor-not-allowed disabled:opacity-50"
-                                    disabled={isCompleted || isPending}
+                                    disabled={isReadOnly}
                                     onClick={() => handleAddSet(exercise.id)}
                                     type="button"
                                 >
@@ -493,7 +496,7 @@ export function WorkoutSessionClient({
 
             <button
                 className="group mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-high py-5 font-headline font-bold text-primary-container transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isCompleted || isPending}
+                disabled={isReadOnly}
                 onClick={handleAddExerciseOpen}
                 type="button"
             >
@@ -603,11 +606,15 @@ export function WorkoutSessionClient({
             <div className="mt-12 mb-10">
                 <button
                     className="w-full rounded-xl bg-linear-to-br from-primary to-primary-container py-4 font-headline text-lg font-black uppercase tracking-[0.08em] text-on-primary-fixed shadow-lg shadow-primary-container/20 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isCompleted || isPending}
+                    disabled={isReadOnly}
                     onClick={handleFinishWorkout}
                     type="button"
                 >
-                    {isCompleted ? 'Workout Complete' : 'Finish Workout'}
+                    {isCompleted
+                        ? allowEditingCompleted
+                            ? 'Recalculate Workout'
+                            : 'Workout Complete'
+                        : 'Finish Workout'}
                 </button>
             </div>
         </main>

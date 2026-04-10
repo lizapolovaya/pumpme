@@ -298,7 +298,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                             <div className="flex gap-3 bg-surface-container-highest p-6">
                                 <Link
                                     className="flex-1 rounded-xl border border-outline-variant/20 bg-surface-container-highest py-3 text-center font-headline text-sm font-black italic uppercase tracking-[-0.04em] text-on-surface-variant transition hover:bg-surface-bright"
-                                    href={`/workouts?date=${selectedDate}`}
+                                    href={`/workouts?date=${selectedDate}&edit=1`}
                                 >
                                     Open Workout
                                 </Link>

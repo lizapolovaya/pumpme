@@ -7,6 +7,7 @@ type WorkoutsPageProps = {
     searchParams?: Promise<{
         activate?: string;
         date?: string;
+        edit?: string;
     }>;
 };
 
@@ -44,6 +45,7 @@ export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) 
     const services = createBackendServices(userId);
     const today = new Date().toISOString().slice(0, 10);
     const selectedDate = params?.date && isIsoDate(params.date) ? params.date : today;
+    const allowEditingCompleted = params?.edit === '1';
     const [session, templates] = await Promise.all([
         selectedDate === today
             ? services.workouts.getSessionByDate(today)
@@ -88,6 +90,7 @@ export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) 
 
             <WorkoutSessionClient
                 activateOnMount={params?.activate === '1'}
+                allowEditingCompleted={allowEditingCompleted}
                 initialSession={session}
                 templates={templates}
             />
