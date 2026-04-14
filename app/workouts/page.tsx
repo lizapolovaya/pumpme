@@ -47,13 +47,13 @@ export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) 
     const selectedDate = params?.date && isIsoDate(params.date) ? params.date : today;
     const allowEditingCompleted = params?.edit === '1';
     const [session, templates] = await Promise.all([
-        selectedDate === today
-            ? services.workouts.getSessionByDate(today)
+        selectedDate === today || allowEditingCompleted
+            ? services.workouts.getSessionByDate(selectedDate)
             : services.workouts.findSessionByDate(selectedDate),
         services.workouts.listTemplates()
     ]);
 
-    if (!session || (selectedDate !== today && !hasLoggedEntries(session))) {
+    if (!session || (!allowEditingCompleted && selectedDate !== today && !hasLoggedEntries(session))) {
         return (
             <>
                 <AppHeader />
