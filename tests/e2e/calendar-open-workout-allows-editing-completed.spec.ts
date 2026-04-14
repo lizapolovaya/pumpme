@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 test('calendar open workout allows editing a completed workout', async ({ page }) => {
+    await page.context().setExtraHTTPHeaders({
+        'x-pumpme-user-id': `e2e-${randomUUID()}`
+    });
+
     const today = new Date().toISOString().slice(0, 10);
 
     await page.goto('/login');
@@ -41,4 +46,3 @@ test('calendar open workout allows editing a completed workout', async ({ page }
     await expect(page.getByText('Exercise added.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Seated Row' }).first()).toBeVisible();
 });
-

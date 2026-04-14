@@ -208,6 +208,20 @@ export function WorkoutSessionClient({
         );
     }
 
+    function handleDeleteExercise(exerciseId: string, exerciseName: string) {
+        if (!window.confirm(`Delete ${exerciseName}?`)) {
+            return;
+        }
+
+        handleMutation(
+            () =>
+                requestSession(`/api/workouts/sessions/${session.id}/exercises/${exerciseId}`, {
+                    method: 'DELETE'
+                }),
+            `${exerciseName} removed.`
+        );
+    }
+
     function handleSetChange(
         setId: string,
         field: 'weightKg' | 'reps' | 'rpe',
@@ -407,14 +421,26 @@ export function WorkoutSessionClient({
                                         {exercise.exerciseName}
                                     </h3>
                                 </div>
-                                <button
-                                    className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
-                                    disabled={isReadOnly}
-                                    onClick={() => handleExerciseAction(exercise.id, exercise.exerciseName)}
-                                    type="button"
-                                >
-                                    <PencilLine className="h-4 w-4" strokeWidth={2.1} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        aria-label={`Rename ${exercise.exerciseName}`}
+                                        className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+                                        disabled={isReadOnly}
+                                        onClick={() => handleExerciseAction(exercise.id, exercise.exerciseName)}
+                                        type="button"
+                                    >
+                                        <PencilLine className="h-4 w-4" strokeWidth={2.1} />
+                                    </button>
+                                    <button
+                                        aria-label={`Delete ${exercise.exerciseName}`}
+                                        className="text-error transition-colors hover:text-error/80 disabled:opacity-50"
+                                        disabled={isReadOnly}
+                                        onClick={() => handleDeleteExercise(exercise.id, exercise.exerciseName)}
+                                        type="button"
+                                    >
+                                        <Trash2 className="h-4 w-4" strokeWidth={2.1} />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="px-5 pb-5">

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 test('calendar shows the logged workout for a day even if a newer empty session exists', async ({ page }) => {
+    await page.context().setExtraHTTPHeaders({
+        'x-pumpme-user-id': `e2e-${randomUUID()}`
+    });
+
     const today = new Date().toISOString().slice(0, 10);
 
     await page.goto('/login');
