@@ -31,6 +31,9 @@ test('calendar open workout allows logging for past and future dates', async ({ 
         await page.getByRole('link', { name: 'Open Workout' }).click();
         await page.waitForURL(`**/workouts?date=${target}&edit=1`);
 
+        await expect(page.getByRole('heading', { name: 'Bench Press' })).toHaveCount(0);
+        await expect(page.getByRole('heading', { name: 'Tricep Pushdowns' })).toHaveCount(0);
+
         await page.getByRole('button', { name: 'Add Exercise' }).click();
         const dialog = page.getByRole('dialog', { name: 'Add exercise' });
         await expect(dialog).toBeVisible();
@@ -40,4 +43,3 @@ test('calendar open workout allows logging for past and future dates', async ({ 
         await expect(page.getByRole('heading', { name: 'Lat Pulldown' }).first()).toBeVisible();
     }
 });
-

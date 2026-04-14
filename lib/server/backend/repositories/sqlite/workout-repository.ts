@@ -112,7 +112,11 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
 
         let session = this.findSessionRow(db, userId, normalizedDate);
         if (!session) {
-            session = this.createDefaultSession(db, userId, normalizedDate);
+            const today = toIsoDate(new Date());
+            session =
+                normalizedDate === today
+                    ? this.createDefaultSession(db, userId, normalizedDate)
+                    : this.createBlankSession(db, userId, normalizedDate);
         }
 
         return this.getSessionById(userId, session.id);
@@ -551,6 +555,31 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         });
 
         this.cloneTemplateExercises(db, sessionId, defaultTemplate.id);
+        return this.requireSessionRow(db, userId, sessionId);
+    }
+
+    private createBlankSession(
+        db: ReturnType<typeof getSqliteRepositoryDatabase>,
+        userId: string,
+        date: string
+    ): SessionRow {
+        const sessionId = createId('session');
+        const label = new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'UTC'
+        }).format(new Date(`${date}T00:00:00.000Z`));
+
+        db.prepare(`
+            INSERT INTO workout_sessions (id, user_id, template_id, date, title, focus, status)
+            VALUES (@id, @userId, NULL, @date, @title, NULL, 'scheduled')
+        `).run({
+            id: sessionId,
+            userId,
+            date,
+            title: `Session ${label}`
+        });
+
         return this.requireSessionRow(db, userId, sessionId);
     }
 

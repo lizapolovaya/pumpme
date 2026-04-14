@@ -109,6 +109,31 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             return this.getSessionById(userId, sessionRow.id);
         }
 
+        const today = toIsoDate(new Date());
+        if (normalizedDate !== today) {
+            const sessionId = createId('session');
+            const label = new Intl.DateTimeFormat('en-US', {
+                month: 'short',
+                day: 'numeric',
+                timeZone: 'UTC'
+            }).format(new Date(`${normalizedDate}T00:00:00.000Z`));
+
+            const insertResult = await this.client.from('workout_sessions').insert({
+                id: sessionId,
+                user_id: userId,
+                template_id: null,
+                date: normalizedDate,
+                title: `Session ${label}`,
+                focus: null,
+                status: 'scheduled'
+            });
+            if (insertResult.error) {
+                throw insertResult.error;
+            }
+
+            return this.getSessionById(userId, sessionId);
+        }
+
         const defaultTemplate = await this.getDefaultTemplateRow(userId);
         if (!defaultTemplate) {
             return null;
