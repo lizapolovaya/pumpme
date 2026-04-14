@@ -86,6 +86,7 @@ export function WorkoutSessionClient({
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
     const isReadOnly = isPending || (isCompleted && !allowEditingCompleted);
+    const hasAnythingToFinish = isCompleted || session.exercises.length > 0;
 
     async function requestSession(
         input: RequestInfo | URL,
@@ -629,20 +630,22 @@ export function WorkoutSessionClient({
                 </div>
             ) : null}
 
-            <div className="mt-12 mb-10">
-                <button
-                    className="w-full rounded-xl bg-linear-to-br from-primary to-primary-container py-4 font-headline text-lg font-black uppercase tracking-[0.08em] text-on-primary-fixed shadow-lg shadow-primary-container/20 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isReadOnly}
-                    onClick={handleFinishWorkout}
-                    type="button"
-                >
-                    {isCompleted
-                        ? allowEditingCompleted
-                            ? 'Recalculate Workout'
-                            : 'Workout Complete'
-                        : 'Finish Workout'}
-                </button>
-            </div>
+            {hasAnythingToFinish ? (
+                <div className="mt-12 mb-10">
+                    <button
+                        className="w-full rounded-xl bg-linear-to-br from-primary to-primary-container py-4 font-headline text-lg font-black uppercase tracking-[0.08em] text-on-primary-fixed shadow-lg shadow-primary-container/20 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isReadOnly}
+                        onClick={handleFinishWorkout}
+                        type="button"
+                    >
+                        {isCompleted
+                            ? allowEditingCompleted
+                                ? 'Recalculate Workout'
+                                : 'Workout Complete'
+                            : 'Finish Workout'}
+                    </button>
+                </div>
+            ) : null}
         </main>
     );
 }

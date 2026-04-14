@@ -33,6 +33,7 @@ test('calendar open workout allows logging for past and future dates', async ({ 
 
         await expect(page.getByRole('heading', { name: 'Bench Press' })).toHaveCount(0);
         await expect(page.getByRole('heading', { name: 'Tricep Pushdowns' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Finish Workout' })).toHaveCount(0);
 
         await page.getByRole('button', { name: 'Add Exercise' }).click();
         const dialog = page.getByRole('dialog', { name: 'Add exercise' });
@@ -41,5 +42,6 @@ test('calendar open workout allows logging for past and future dates', async ({ 
         await dialog.getByRole('button', { name: 'Add' }).click();
         await expect(page.getByText('Exercise added.')).toBeVisible();
         await expect(page.getByRole('heading', { name: 'Lat Pulldown' }).first()).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Finish Workout' })).toBeVisible();
     }
 });
