@@ -35,6 +35,7 @@ export interface PreferencesRepository {
 
 export interface WorkoutRepository {
     listTemplates(userId: string): Promise<WorkoutTemplateDto[]>;
+    getSession(userId: string, sessionId: string): Promise<WorkoutSessionDto>;
     getSessionByDate(userId: string, date: string): Promise<WorkoutSessionDto | null>;
     findSessionByDate(userId: string, date: string): Promise<WorkoutSessionDto | null>;
     startSession(userId: string, input: StartWorkoutSessionInput): Promise<WorkoutSessionDto>;

@@ -38,6 +38,7 @@ export interface DashboardService {
 
 export interface WorkoutService {
     listTemplates(): Promise<WorkoutTemplateDto[]>;
+    getSession(sessionId: string): Promise<WorkoutSessionDto>;
     getSessionByDate(date: string): Promise<WorkoutSessionDto | null>;
     findSessionByDate(date: string): Promise<WorkoutSessionDto | null>;
     startSession(input: StartWorkoutSessionInput): Promise<WorkoutSessionDto>;

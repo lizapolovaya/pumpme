@@ -15,8 +15,9 @@ import {
     User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { BottomNav } from '../components/bottom-nav';
+import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 import type {
     NutritionDayDto,
     PreferencesDto,
@@ -89,6 +90,74 @@ export function ProfileClient({
         return response.json() as Promise<T>;
     }
 
+    useEffect(() => {
+        const client = getSupabaseBrowserClient();
+        if (!client) {
+            return;
+        }
+
+        let isActive = true;
+        let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        const syncProfileState = () => {
+            if (syncTimeout) {
+                clearTimeout(syncTimeout);
+            }
+
+            syncTimeout = setTimeout(async () => {
+                try {
+                    const [nextProfile, nextPreferences] = await Promise.all([
+                        requestJson<ProfileDto>('/api/profile'),
+                        requestJson<PreferencesDto>('/api/preferences')
+                    ]);
+
+                    if (!isActive) {
+                        return;
+                    }
+
+                    setProfile(nextProfile);
+                    setDisplayName(nextProfile.displayName);
+                    setAge(nextProfile.age ? String(nextProfile.age) : '');
+                    setPrimaryGoal(nextProfile.primaryGoal);
+                    setPreferences(nextPreferences);
+                } catch {
+                    return;
+                }
+            }, 120);
+        };
+
+        const channel = client
+            .channel(`profile-sync:${profile.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'users',
+                filter: `id=eq.${profile.id}`
+            }, syncProfileState)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'user_metrics',
+                filter: `user_id=eq.${profile.id}`
+            }, syncProfileState)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'user_preferences',
+                filter: `user_id=eq.${profile.id}`
+            }, syncProfileState)
+            .subscribe();
+
+        return () => {
+            isActive = false;
+            if (syncTimeout) {
+                clearTimeout(syncTimeout);
+            }
+
+            client.removeChannel(channel);
+        };
+    }, [profile.id]);
+
     function handleSaveProfile() {
         startTransition(async () => {
             setFeedback(null);
@@ -112,7 +181,6 @@ export function ProfileClient({
                 setAge(nextProfile.age ? String(nextProfile.age) : '');
                 setPrimaryGoal(nextProfile.primaryGoal);
                 setFeedback('Profile saved.');
-                router.refresh();
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to save profile');
             }
@@ -143,7 +211,6 @@ export function ProfileClient({
 
                 setProfile(nextProfile);
                 setFeedback('Profile photo updated.');
-                router.refresh();
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update profile photo');
             }
@@ -172,7 +239,6 @@ export function ProfileClient({
 
                 setPreferences(nextPreferences);
                 setFeedback('Measurement units updated.');
-                router.refresh();
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update preferences');
             }
@@ -203,7 +269,6 @@ export function ProfileClient({
 
                 setPreferences(nextPreferences);
                 setFeedback('Food database updated.');
-                router.refresh();
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update food database');
             }

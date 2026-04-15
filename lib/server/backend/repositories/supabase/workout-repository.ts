@@ -100,6 +100,10 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
         }));
     }
 
+    async getSession(userId: string, sessionId: string): Promise<WorkoutSessionDto> {
+        return this.getSessionById(userId, sessionId);
+    }
+
     async getSessionByDate(userId: string, date: string): Promise<WorkoutSessionDto | null> {
         const normalizedDate = toIsoDate(date);
         await ensureScaffoldForDate(this.client, userId, normalizedDate);
@@ -153,7 +157,6 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw insertResult.error;
         }
 
-        await this.cloneTemplateExercises(sessionId, defaultTemplate.id);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -318,6 +321,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw insertExercise.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -340,6 +344,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw updateResult.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -355,6 +360,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw deleteResult.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -385,6 +391,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw insertResult.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -421,6 +428,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw update.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -432,33 +440,18 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             throw deleteResult.error;
         }
 
+        await this.syncSessionMetrics(userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
     async finishSession(userId: string, sessionId: string): Promise<WorkoutSessionDto> {
-        const session = await this.requireSessionRow(userId, sessionId);
-
-        const exercisesResult = await this.client
-            .from('workout_session_exercises')
-            .select('id')
-            .eq('session_id', sessionId);
-        const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load exercises') as Array<{ id: string }>;
-        const exerciseIds = exercises.map((exercise) => exercise.id);
-
-        const sets = await this.loadSetsByExerciseIds(exerciseIds);
-
-        const totalVolume = sets.reduce((sum, set) => sum + (set.weight_kg ?? 0) * (set.reps ?? 0), 0);
-        const setCount = sets.length;
-        const durationMinutes = session.duration_minutes ?? Math.max(setCount * 3, 30);
-        const estimatedBurnKcal = Math.round(durationMinutes * 4.5);
+        await this.requireSessionRow(userId, sessionId);
+        const { sets } = await this.syncSessionMetrics(userId, sessionId);
 
         const updateSession = await this.client
             .from('workout_sessions')
             .update({
                 status: 'completed',
-                duration_minutes: durationMinutes,
-                total_volume_kg: totalVolume,
-                estimated_burn_kcal: estimatedBurnKcal,
                 completed_at: new Date().toISOString()
             })
             .eq('id', sessionId)
@@ -484,6 +477,48 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
         return this.getSessionById(userId, sessionId);
     }
 
+    private async syncSessionMetrics(userId: string, sessionId: string): Promise<{
+        durationMinutes: number;
+        estimatedBurnKcal: number;
+        totalVolume: number;
+        sets: SetRow[];
+    }> {
+        const session = await this.requireSessionRow(userId, sessionId);
+
+        const exercisesResult = await this.client
+            .from('workout_session_exercises')
+            .select('id')
+            .eq('session_id', sessionId);
+        const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load exercises') as Array<{ id: string }>;
+        const exerciseIds = exercises.map((exercise) => exercise.id);
+        const sets = await this.loadSetsByExerciseIds(exerciseIds);
+
+        const totalVolume = sets.reduce((sum, set) => sum + (set.weight_kg ?? 0) * (set.reps ?? 0), 0);
+        const setCount = sets.length;
+        const durationMinutes = session.duration_minutes ?? Math.max(setCount * 3, 30);
+        const estimatedBurnKcal = Math.round(durationMinutes * 4.5);
+
+        const updateSession = await this.client
+            .from('workout_sessions')
+            .update({
+                duration_minutes: durationMinutes,
+                total_volume_kg: totalVolume,
+                estimated_burn_kcal: estimatedBurnKcal
+            })
+            .eq('id', sessionId)
+            .eq('user_id', userId);
+        if (updateSession.error) {
+            throw updateSession.error;
+        }
+
+        return {
+            durationMinutes,
+            estimatedBurnKcal,
+            totalVolume,
+            sets
+        };
+    }
+
     private async getSessionById(userId: string, sessionId: string): Promise<WorkoutSessionDto> {
         const sessionResult = await this.client
             .from('workout_sessions')
@@ -494,14 +529,31 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
 
         const session = requireSupabaseOk(sessionResult as any, `Workout session ${sessionId} not found`) as Omit<SessionRow, 'created_at'>;
 
-        const exercisesResult = await this.client
+        let exercisesResult = await this.client
             .from('workout_session_exercises')
             .select('id,session_id,exercise_id,exercise_name,sort_order')
             .eq('session_id', sessionId)
             .order('sort_order', { ascending: true });
-        const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load workout exercises') as SessionExerciseRow[];
+        let exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load workout exercises') as SessionExerciseRow[];
 
         const sets = await this.loadSetsByExerciseIds(exercises.map((exercise) => exercise.id));
+
+        if (await this.isUntouchedAutoSeededSession(session, exercises, sets)) {
+            const deleteResult = await this.client
+                .from('workout_session_exercises')
+                .delete()
+                .eq('session_id', sessionId);
+            if (deleteResult.error) {
+                throw deleteResult.error;
+            }
+
+            exercisesResult = await this.client
+                .from('workout_session_exercises')
+                .select('id,session_id,exercise_id,exercise_name,sort_order')
+                .eq('session_id', sessionId)
+                .order('sort_order', { ascending: true });
+            exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load workout exercises') as SessionExerciseRow[];
+        }
 
         const mappedExercises: WorkoutSessionExerciseDto[] = exercises.map((exercise) => ({
             id: exercise.id,
@@ -535,6 +587,47 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
             estimatedBurnKcal: session.estimated_burn_kcal,
             exercises: mappedExercises
         };
+    }
+
+    private async isUntouchedAutoSeededSession(
+        session: Omit<SessionRow, 'created_at'>,
+        exercises: SessionExerciseRow[],
+        sets: SetRow[]
+    ): Promise<boolean> {
+        if (session.status === 'completed' || session.total_volume_kg !== null || session.estimated_burn_kcal !== null) {
+            return false;
+        }
+
+        if (!session.template_id || !exercises.length || sets.length > 0) {
+            return false;
+        }
+
+        const templateExercisesResult = await this.client
+            .from('template_exercises')
+            .select('exercise_id,exercise_name,sort_order')
+            .eq('template_id', session.template_id)
+            .order('sort_order', { ascending: true });
+        const templateExercises = requireSupabaseOk(
+            templateExercisesResult as any,
+            'Unable to load template exercises'
+        ) as Array<{
+            exercise_id: string;
+            exercise_name: string;
+            sort_order: number;
+        }>;
+
+        if (templateExercises.length !== exercises.length) {
+            return false;
+        }
+
+        return exercises.every((exercise, index) => {
+            const templateExercise = templateExercises[index];
+            return (
+                exercise.exercise_id === templateExercise?.exercise_id &&
+                exercise.exercise_name === templateExercise?.exercise_name &&
+                exercise.sort_order === templateExercise?.sort_order
+            );
+        });
     }
 
     private async loadSetsByExerciseIds(exerciseIds: string[]): Promise<SetRow[]> {

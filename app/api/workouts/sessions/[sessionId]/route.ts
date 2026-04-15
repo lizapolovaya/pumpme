@@ -24,3 +24,16 @@ export async function PATCH(request: Request, context: RouteContext) {
         return jsonError(message, status);
     }
 }
+
+export async function GET(_request: Request, context: RouteContext) {
+    try {
+        const { sessionId } = await context.params;
+        const { userId } = await resolveCurrentUserContext();
+        const services = createBackendServices(userId);
+        const session = await services.workouts.getSession(sessionId);
+
+        return NextResponse.json(session);
+    } catch (error) {
+        return jsonError(error instanceof Error ? error.message : 'Unable to load workout session', 500);
+    }
+}

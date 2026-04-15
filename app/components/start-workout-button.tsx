@@ -9,7 +9,6 @@ type StartWorkoutButtonProps = {
     focus: string | null;
     sessionId: string | null;
     sessionStatus: 'scheduled' | 'active' | 'completed' | 'cancelled' | 'none';
-    templateId: string | null;
     title: string;
 };
 
@@ -18,7 +17,6 @@ export function StartWorkoutButton({
     focus,
     sessionId,
     sessionStatus,
-    templateId,
     title
 }: StartWorkoutButtonProps) {
     const router = useRouter();
@@ -53,7 +51,6 @@ export function StartWorkoutButton({
                         body: JSON.stringify({
                             date,
                             focus,
-                            templateId,
                             title
                         })
                     });
@@ -64,7 +61,6 @@ export function StartWorkoutButton({
                 }
 
                 router.push('/workouts');
-                router.refresh();
             } catch {
                 setError('Unable to open today\'s workout.');
             }

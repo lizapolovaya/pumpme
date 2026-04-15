@@ -59,7 +59,6 @@ export function RerunSessionButton({ selectedSession }: RerunSessionButtonProps)
                 }
 
                 router.push('/workouts?activate=1');
-                router.refresh();
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to rerun this session');
             }

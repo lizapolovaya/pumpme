@@ -19,6 +19,10 @@ export class DefaultWorkoutService implements WorkoutService {
         return this.repository.listTemplates(this.userId);
     }
 
+    async getSession(sessionId: string) {
+        return this.repository.getSession(this.userId, sessionId);
+    }
+
     async getSessionByDate(date: string) {
         return this.repository.getSessionByDate(this.userId, date);
     }

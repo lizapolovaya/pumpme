@@ -10,6 +10,7 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { useEffect, useState, useTransition } from 'react';
+import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 import type { WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/backend/types';
 
 type WorkoutSessionClientProps = {
@@ -49,6 +50,37 @@ function createExerciseIdFromName(exerciseName: string): string {
     return `exercise-${slugifyExerciseName(exerciseName)}`;
 }
 
+function sanitizeWeightInput(value: string): string {
+    const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
+    const [wholePart = '', ...decimalParts] = normalized.split('.');
+    const decimals = decimalParts.join('').slice(0, 2);
+    const clampedWhole = wholePart.slice(0, 4);
+
+    if (normalized.includes('.')) {
+        return `${clampedWhole}.${decimals}`;
+    }
+
+    return clampedWhole;
+}
+
+function sanitizeRepsInput(value: string): string {
+    return value.replace(/\D/g, '').slice(0, 2);
+}
+
+function sanitizeRpeInput(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 2);
+    if (!digits) {
+        return '';
+    }
+
+    const parsed = Number(digits);
+    if (parsed <= 0) {
+        return '1';
+    }
+
+    return String(Math.min(parsed, 10));
+}
+
 function getSessionVolume(session: WorkoutSessionDto): number {
     return session.exercises.reduce(
         (sum, exercise) =>
@@ -86,7 +118,6 @@ export function WorkoutSessionClient({
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
     const isReadOnly = isPending || (isCompleted && !allowEditingCompleted);
-    const hasAnythingToFinish = isCompleted || session.exercises.length > 0;
 
     async function requestSession(
         input: RequestInfo | URL,
@@ -149,6 +180,73 @@ export function WorkoutSessionClient({
             'Workout started.'
         );
     }, [activateOnMount, session.id, session.status]);
+
+    useEffect(() => {
+        const client = getSupabaseBrowserClient();
+        if (!client) {
+            return;
+        }
+
+        let isActive = true;
+        let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+        const exerciseIds = new Set(session.exercises.map((exercise) => exercise.id));
+
+        const syncSession = () => {
+            if (syncTimeout) {
+                clearTimeout(syncTimeout);
+            }
+
+            syncTimeout = setTimeout(async () => {
+                try {
+                    const nextSession = await requestSession(`/api/workouts/sessions/${session.id}`);
+                    if (isActive) {
+                        setSession(nextSession);
+                    }
+                } catch {
+                    return;
+                }
+            }, 120);
+        };
+
+        const handleSetChange = (payload: { new: Record<string, unknown> | null; old: Record<string, unknown> | null }) => {
+            const row = payload.new ?? payload.old;
+            const sessionExerciseId = typeof row?.session_exercise_id === 'string' ? row.session_exercise_id : null;
+
+            if (sessionExerciseId && exerciseIds.has(sessionExerciseId)) {
+                syncSession();
+            }
+        };
+
+        const channel = client
+            .channel(`workout-session:${session.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'workout_sessions',
+                filter: `id=eq.${session.id}`
+            }, syncSession)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'workout_session_exercises',
+                filter: `session_id=eq.${session.id}`
+            }, syncSession)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'workout_sets'
+            }, handleSetChange)
+            .subscribe();
+
+        return () => {
+            isActive = false;
+            if (syncTimeout) {
+                clearTimeout(syncTimeout);
+            }
+
+            client.removeChannel(channel);
+        };
+    }, [session.id, session.exercises]);
 
     function handleRenameWorkout() {
         const nextTitle = window.prompt('Workout title', session.title);
@@ -325,16 +423,6 @@ export function WorkoutSessionClient({
         );
     }
 
-    function handleFinishWorkout() {
-        handleMutation(
-            () =>
-                requestSession(`/api/workouts/sessions/${session.id}/finish`, {
-                    method: 'POST'
-                }),
-            'Workout finished.'
-        );
-    }
-
     const volume = getSessionVolume(session);
     const estimatedBurn = getEstimatedBurn(session);
 
@@ -467,8 +555,13 @@ export function WorkoutSessionClient({
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.weightKg ?? ''}
                                                     disabled={isReadOnly}
-                                                    onBlur={(event) => handleSetChange(set.id, 'weightKg', event.target.value)}
-                                                    type="number"
+                                                    inputMode="numeric"
+                                                    onBlur={(event) => handleSetChange(set.id, 'weightKg', sanitizeWeightInput(event.target.value))}
+                                                    onInput={(event) => {
+                                                        event.currentTarget.value = sanitizeWeightInput(event.currentTarget.value);
+                                                    }}
+                                                    pattern="[0-9]+([.][0-9]{0,2})?"
+                                                    type="text"
                                                 />
                                             </div>
                                             <div className="col-span-3">
@@ -476,8 +569,14 @@ export function WorkoutSessionClient({
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.reps ?? ''}
                                                     disabled={isReadOnly}
-                                                    onBlur={(event) => handleSetChange(set.id, 'reps', event.target.value)}
-                                                    type="number"
+                                                    inputMode="numeric"
+                                                    maxLength={2}
+                                                    onBlur={(event) => handleSetChange(set.id, 'reps', sanitizeRepsInput(event.target.value))}
+                                                    onInput={(event) => {
+                                                        event.currentTarget.value = sanitizeRepsInput(event.currentTarget.value);
+                                                    }}
+                                                    pattern="[0-9]*"
+                                                    type="text"
                                                 />
                                             </div>
                                             <div className="col-span-3">
@@ -485,11 +584,14 @@ export function WorkoutSessionClient({
                                                     className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.rpe ?? ''}
                                                     disabled={isReadOnly}
-                                                    max="10"
-                                                    min="1"
-                                                    onBlur={(event) => handleSetChange(set.id, 'rpe', event.target.value)}
-                                                    step="0.5"
-                                                    type="number"
+                                                    inputMode="numeric"
+                                                    maxLength={2}
+                                                    onBlur={(event) => handleSetChange(set.id, 'rpe', sanitizeRpeInput(event.target.value))}
+                                                    onInput={(event) => {
+                                                        event.currentTarget.value = sanitizeRpeInput(event.currentTarget.value);
+                                                    }}
+                                                    pattern="[0-9]*"
+                                                    type="text"
                                                 />
                                             </div>
                                             <div className="col-span-1 flex justify-end">
@@ -630,22 +732,6 @@ export function WorkoutSessionClient({
                 </div>
             ) : null}
 
-            {hasAnythingToFinish ? (
-                <div className="mt-12 mb-10">
-                    <button
-                        className="w-full rounded-xl bg-linear-to-br from-primary to-primary-container py-4 font-headline text-lg font-black uppercase tracking-[0.08em] text-on-primary-fixed shadow-lg shadow-primary-container/20 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isReadOnly}
-                        onClick={handleFinishWorkout}
-                        type="button"
-                    >
-                        {isCompleted
-                            ? allowEditingCompleted
-                                ? 'Recalculate Workout'
-                                : 'Workout Complete'
-                            : 'Finish Workout'}
-                    </button>
-                </div>
-            ) : null}
         </main>
     );
 }

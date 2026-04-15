@@ -136,7 +136,6 @@ export default async function Home() {
             focus={dashboard.plannedWorkout.focus}
             sessionId={dashboard.plannedWorkout.sessionId}
             sessionStatus={dashboard.plannedWorkout.status}
-            templateId={dashboard.plannedWorkout.templateId}
             title={dashboard.plannedWorkout.title}
           />
         </section>

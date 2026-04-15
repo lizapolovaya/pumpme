@@ -105,6 +105,10 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         }));
     }
 
+    async getSession(userId: string, sessionId: string): Promise<WorkoutSessionDto> {
+        return this.getSessionById(userId, sessionId);
+    }
+
     async getSessionByDate(userId: string, date: string): Promise<WorkoutSessionDto | null> {
         const db = getSqliteRepositoryDatabase();
         const normalizedDate = toIsoDate(date);
@@ -217,6 +221,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             sortOrder: nextOrder
         });
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -252,6 +257,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             exerciseName: input.exerciseName ?? current.exercise_name
         });
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -264,6 +270,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             WHERE id = ? AND session_id = ?
         `).run(exerciseRowId, sessionId);
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -290,6 +297,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             completed: input.weightKg !== undefined || input.reps !== undefined || input.rpe !== undefined ? 1 : 0
         });
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -336,6 +344,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             completed: nextCompleted
         });
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
@@ -345,43 +354,24 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
 
         db.prepare('DELETE FROM workout_sets WHERE id = ?').run(setId);
 
+        this.syncSessionMetrics(db, userId, sessionId);
         return this.getSessionById(userId, sessionId);
     }
 
     async finishSession(userId: string, sessionId: string): Promise<WorkoutSessionDto> {
         const db = getSqliteRepositoryDatabase();
-        const session = this.requireSessionRow(db, userId, sessionId);
-
-        const metrics = db
-            .prepare(`
-                SELECT
-                    COALESCE(SUM(COALESCE(weight_kg, 0) * COALESCE(reps, 0)), 0) AS totalVolume,
-                    COUNT(*) AS setCount
-                FROM workout_sets
-                WHERE session_exercise_id IN (
-                    SELECT id FROM workout_session_exercises WHERE session_id = ?
-                )
-            `)
-            .get(sessionId) as { totalVolume: number; setCount: number };
-
-        const durationMinutes = session.duration_minutes ?? Math.max(metrics.setCount * 3, 30);
-        const estimatedBurnKcal = Math.round(durationMinutes * 4.5);
+        this.requireSessionRow(db, userId, sessionId);
+        const metrics = this.syncSessionMetrics(db, userId, sessionId);
 
         db.prepare(`
             UPDATE workout_sessions
             SET status = 'completed',
-                duration_minutes = @durationMinutes,
-                total_volume_kg = @totalVolumeKg,
-                estimated_burn_kcal = @estimatedBurnKcal,
                 completed_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = @sessionId AND user_id = @userId
         `).run({
             sessionId,
-            userId,
-            durationMinutes,
-            totalVolumeKg: metrics.totalVolume,
-            estimatedBurnKcal
+            userId
         });
 
         db.prepare(`
@@ -399,11 +389,54 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         return this.getSessionById(userId, sessionId);
     }
 
+    private syncSessionMetrics(
+        db: ReturnType<typeof getSqliteRepositoryDatabase>,
+        userId: string,
+        sessionId: string
+    ): { durationMinutes: number; estimatedBurnKcal: number; totalVolume: number } {
+        const session = this.requireSessionRow(db, userId, sessionId);
+        const metrics = db
+            .prepare(`
+                SELECT
+                    COALESCE(SUM(COALESCE(weight_kg, 0) * COALESCE(reps, 0)), 0) AS totalVolume,
+                    COUNT(*) AS setCount
+                FROM workout_sets
+                WHERE session_exercise_id IN (
+                    SELECT id FROM workout_session_exercises WHERE session_id = ?
+                )
+            `)
+            .get(sessionId) as { totalVolume: number; setCount: number };
+
+        const durationMinutes = session.duration_minutes ?? Math.max(metrics.setCount * 3, 30);
+        const estimatedBurnKcal = Math.round(durationMinutes * 4.5);
+
+        db.prepare(`
+            UPDATE workout_sessions
+            SET duration_minutes = @durationMinutes,
+                total_volume_kg = @totalVolumeKg,
+                estimated_burn_kcal = @estimatedBurnKcal,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = @sessionId AND user_id = @userId
+        `).run({
+            sessionId,
+            userId,
+            durationMinutes,
+            totalVolumeKg: metrics.totalVolume,
+            estimatedBurnKcal
+        });
+
+        return {
+            durationMinutes,
+            estimatedBurnKcal,
+            totalVolume: metrics.totalVolume
+        };
+    }
+
     private getSessionById(userId: string, sessionId: string): WorkoutSessionDto {
         const db = getSqliteRepositoryDatabase();
         const session = this.requireSessionRow(db, userId, sessionId);
 
-        const exercises = db
+        let exercises = db
             .prepare(`
                 SELECT id, session_id, exercise_id, exercise_name, sort_order
                 FROM workout_session_exercises
@@ -422,6 +455,14 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
                 ORDER BY sort_order ASC
             `)
             .all(sessionId) as SetRow[];
+
+        if (this.isUntouchedAutoSeededSession(db, session, exercises, sets)) {
+            db.prepare(`
+                DELETE FROM workout_session_exercises
+                WHERE session_id = ?
+            `).run(sessionId);
+            exercises = [];
+        }
 
         const mappedExercises: WorkoutSessionExerciseDto[] = exercises.map((exercise) => ({
             id: exercise.id,
@@ -522,6 +563,47 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         return session;
     }
 
+    private isUntouchedAutoSeededSession(
+        db: ReturnType<typeof getSqliteRepositoryDatabase>,
+        session: SessionRow,
+        exercises: SessionExerciseRow[],
+        sets: SetRow[]
+    ): boolean {
+        if (session.status === 'completed' || session.total_volume_kg !== null || session.estimated_burn_kcal !== null) {
+            return false;
+        }
+
+        if (!session.template_id || !exercises.length || sets.length > 0) {
+            return false;
+        }
+
+        const templateExercises = db
+            .prepare(`
+                SELECT exercise_id, exercise_name, sort_order
+                FROM template_exercises
+                WHERE template_id = ?
+                ORDER BY sort_order ASC
+            `)
+            .all(session.template_id) as Array<{
+            exercise_id: string;
+            exercise_name: string;
+            sort_order: number;
+        }>;
+
+        if (templateExercises.length !== exercises.length) {
+            return false;
+        }
+
+        return exercises.every((exercise, index) => {
+            const templateExercise = templateExercises[index];
+            return (
+                exercise.exercise_id === templateExercise?.exercise_id &&
+                exercise.exercise_name === templateExercise?.exercise_name &&
+                exercise.sort_order === templateExercise?.sort_order
+            );
+        });
+    }
+
     private createDefaultSession(
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
@@ -554,7 +636,6 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
             focus: defaultTemplate.focus
         });
 
-        this.cloneTemplateExercises(db, sessionId, defaultTemplate.id);
         return this.requireSessionRow(db, userId, sessionId);
     }
 

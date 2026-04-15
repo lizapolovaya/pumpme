@@ -24,3 +24,5 @@ If `PUMPME_SQLITE_PATH` is not set, local development uses `./data/pumpme.sqlite
 3. Switch `PUMPME_STORAGE_DRIVER` to `supabase` and configure `PUMPME_SUPABASE_URL` + a key.
 
 Note: the current Supabase adapter assumes server-side access (API routes / server components) and works best with `PUMPME_SUPABASE_SERVICE_ROLE_KEY` unless you have RLS policies in place.
+
+Client-side realtime is separate from the server adapter. If you subscribe from the browser, use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and keep the service role key server-only.

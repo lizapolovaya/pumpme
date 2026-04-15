@@ -31,3 +31,12 @@ The backend storage boundary lives under [lib/server/backend](/home/liza/pumpme/
    - `PUMPME_SUPABASE_URL=...`
    - `PUMPME_SUPABASE_SERVICE_ROLE_KEY=...` (recommended for development unless you have RLS policies configured)
 4. Start the app with `npm run dev`.
+
+### Optional Realtime
+
+If you want browser-side realtime updates over Supabase Realtime/WebSockets, also set:
+
+- `NEXT_PUBLIC_SUPABASE_URL=...`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
+
+Do not expose `PUMPME_SUPABASE_SERVICE_ROLE_KEY` in the browser. Realtime subscriptions should use an anon key with appropriate RLS policies.
