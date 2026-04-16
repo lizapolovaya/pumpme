@@ -5,10 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { closeDatabase } from '../../lib/server/backend/db';
 import * as bootstrapRoute from '../../app/api/bootstrap/route';
+import * as calendarRoute from '../../app/api/calendar/month/route';
 import * as nutritionRoute from '../../app/api/nutrition/today/route';
 import * as profileRoute from '../../app/api/profile/route';
 import * as preferencesRoute from '../../app/api/preferences/route';
 import * as sessionsRoute from '../../app/api/workouts/sessions/route';
+import * as sessionExercisesRoute from '../../app/api/workouts/sessions/[sessionId]/exercises/route';
 import * as finishRoute from '../../app/api/workouts/sessions/[sessionId]/finish/route';
 
 let tempDir = '';
@@ -133,4 +135,37 @@ test('bootstrap and workout routes expose a coherent session flow', async () => 
     const bootstrap = await bootstrapResponse.json();
     assert.equal(bootstrap.user.displayName, 'Alex Rivers');
     assert.ok(Array.isArray(bootstrap.today.weeklyDiscipline));
+});
+
+test('calendar route returns selected day session details', async () => {
+    const sessionResponse = await sessionsRoute.POST(
+        jsonRequest('http://localhost/api/workouts/sessions', 'POST', {
+            date: '2026-04-09',
+            title: 'Speed Session',
+            focus: 'Lower body'
+        })
+    );
+
+    assert.equal(sessionResponse.status, 201);
+    const session = await sessionResponse.json();
+
+    const addExerciseResponse = await sessionExercisesRoute.POST(
+        jsonRequest(`http://localhost/api/workouts/sessions/${session.id}/exercises`, 'POST', {
+            exerciseId: 'exercise-squat',
+            exerciseName: 'Squat'
+        }),
+        {
+            params: Promise.resolve({ sessionId: session.id })
+        }
+    );
+    assert.equal(addExerciseResponse.status, 201);
+
+    const calendarResponse = await calendarRoute.GET(
+        new Request('http://localhost/api/calendar/month?year=2026&month=4&selectedDate=2026-04-09')
+    );
+
+    assert.equal(calendarResponse.status, 200);
+    const calendar = await calendarResponse.json();
+    assert.equal(calendar.selectedDay.date, '2026-04-09');
+    assert.equal(calendar.selectedDay.sessions[0].id, session.id);
 });

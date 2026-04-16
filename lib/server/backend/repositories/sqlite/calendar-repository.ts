@@ -1,7 +1,13 @@
 import type { CalendarRepository } from '../contracts';
-import type { CalendarDayMarkerDto, CalendarMonthDto } from '../../types';
+import type {
+    CalendarDayDetailDto,
+    CalendarDayMarkerDto,
+    CalendarMonthDto,
+    WorkoutSessionDto,
+    WorkoutSessionExerciseDto,
+    WorkoutSetDto
+} from '../../types';
 import { ensureScaffoldForDate, getSqliteRepositoryDatabase, toIsoDate } from './shared';
-import { SqliteWorkoutRepository } from './workout-repository';
 
 type SessionSummaryRow = {
     date: string;
@@ -10,9 +16,37 @@ type SessionSummaryRow = {
     totalVolumeKg: number | null;
 };
 
-export class SqliteCalendarRepository implements CalendarRepository {
-    constructor(private readonly workoutRepository = new SqliteWorkoutRepository()) {}
+type SessionRow = {
+    id: string;
+    template_id: string | null;
+    date: string;
+    title: string;
+    focus: string | null;
+    status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+    duration_minutes: number | null;
+    total_volume_kg: number | null;
+    estimated_burn_kcal: number | null;
+};
 
+type SessionExerciseRow = {
+    id: string;
+    session_id: string;
+    exercise_id: string;
+    exercise_name: string;
+    sort_order: number;
+};
+
+type SetRow = {
+    id: string;
+    session_exercise_id: string;
+    sort_order: number;
+    weight_kg: number | null;
+    reps: number | null;
+    rpe: number | null;
+    completed: number;
+};
+
+export class SqliteCalendarRepository implements CalendarRepository {
     async getMonth(
         userId: string,
         year: number,
@@ -120,12 +154,131 @@ export class SqliteCalendarRepository implements CalendarRepository {
     }
 
     async getDayDetail(userId: string, date: string) {
+        const db = getSqliteRepositoryDatabase();
         const normalizedDate = toIsoDate(date);
-        const session = await this.workoutRepository.findSessionByDate(userId, normalizedDate);
+        const sessions = db
+            .prepare(`
+                SELECT id, template_id, date, title, focus, status, duration_minutes, total_volume_kg, estimated_burn_kcal
+                FROM workout_sessions
+                WHERE user_id = ? AND date = ?
+                ORDER BY created_at DESC
+            `)
+            .all(userId, normalizedDate) as SessionRow[];
+
+        if (!sessions.length) {
+            return {
+                date: normalizedDate,
+                sessions: []
+            } satisfies CalendarDayDetailDto;
+        }
+
+        const sessionIds = sessions.map((session) => session.id);
+        const exercises = db
+            .prepare(`
+                SELECT id, session_id, exercise_id, exercise_name, sort_order
+                FROM workout_session_exercises
+                WHERE session_id IN (${sessionIds.map(() => '?').join(',')})
+                ORDER BY sort_order ASC
+            `)
+            .all(...sessionIds) as SessionExerciseRow[];
+
+        const exerciseIds = exercises.map((exercise) => exercise.id);
+        const sets = exerciseIds.length
+            ? (db
+                  .prepare(`
+                SELECT id, session_exercise_id, sort_order, weight_kg, reps, rpe, completed
+                FROM workout_sets
+                WHERE session_exercise_id IN (${exerciseIds.map(() => '?').join(',')})
+                ORDER BY sort_order ASC
+            `)
+                  .all(...exerciseIds) as SetRow[])
+            : [];
+
+        const session = this.selectRelevantSession(sessions, exercises, sets);
 
         return {
             date: normalizedDate,
             sessions: session ? [session] : []
+        } satisfies CalendarDayDetailDto;
+    }
+
+    private selectRelevantSession(
+        sessions: SessionRow[],
+        exercises: SessionExerciseRow[],
+        sets: SetRow[]
+    ): WorkoutSessionDto | null {
+        const exerciseIdsBySessionId = new Map<string, string[]>();
+        for (const exercise of exercises) {
+            exerciseIdsBySessionId.set(exercise.session_id, [
+                ...(exerciseIdsBySessionId.get(exercise.session_id) ?? []),
+                exercise.id
+            ]);
+        }
+
+        const hasSessionEntries = (sessionId: string): boolean => {
+            const sessionExerciseIds = exerciseIdsBySessionId.get(sessionId) ?? [];
+            if (sessionExerciseIds.length > 0) {
+                return true;
+            }
+
+            return sets.some((set) => {
+                if (!sessionExerciseIds.includes(set.session_exercise_id)) {
+                    return false;
+                }
+
+                return set.completed === 1 || set.weight_kg !== null || set.reps !== null || set.rpe !== null;
+            });
+        };
+
+        const chosenSession =
+            sessions.find((session) => session.status === 'completed' || session.total_volume_kg !== null) ??
+            sessions.find((session) => hasSessionEntries(session.id)) ??
+            null;
+
+        if (!chosenSession) {
+            return null;
+        }
+
+        return this.mapSession(chosenSession, exercises, sets);
+    }
+
+    private mapSession(
+        session: SessionRow,
+        exercises: SessionExerciseRow[],
+        sets: SetRow[]
+    ): WorkoutSessionDto {
+        const mappedExercises: WorkoutSessionExerciseDto[] = exercises
+            .filter((exercise) => exercise.session_id === session.id)
+            .map((exercise) => ({
+                id: exercise.id,
+                exerciseId: exercise.exercise_id,
+                exerciseName: exercise.exercise_name,
+                order: exercise.sort_order,
+                sets: sets
+                    .filter((set) => set.session_exercise_id === exercise.id)
+                    .map(
+                        (set): WorkoutSetDto => ({
+                            id: set.id,
+                            order: set.sort_order,
+                            weightKg: set.weight_kg,
+                            reps: set.reps,
+                            rpe: set.rpe,
+                            completed: Boolean(set.completed)
+                        })
+                    )
+            }));
+
+        return {
+            id: session.id,
+            templateId: session.template_id,
+            date: session.date,
+            title: session.title,
+            focus: session.focus,
+            status: session.status,
+            durationMinutes: session.duration_minutes,
+            totalVolumeKg: session.total_volume_kg,
+            estimatedBurnKcal: session.estimated_burn_kcal,
+            exercises: mappedExercises
         };
     }
 }

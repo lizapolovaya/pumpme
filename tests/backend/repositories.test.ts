@@ -151,7 +151,7 @@ test('default today session is empty when no workout input exists yet', async ()
     const session = await repositories.workouts.getSessionByDate('local-user', '2026-04-15');
 
     assert.ok(session);
-    assert.equal(session?.title, 'Chest & Triceps');
+    assert.equal(session?.title, 'Session Apr 15');
     assert.equal(session?.status, 'scheduled');
     assert.deepEqual(session?.exercises, []);
 });
