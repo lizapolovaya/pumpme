@@ -163,6 +163,18 @@ export type BootstrapResponse = {
     today: TodayDashboardDto;
 };
 
+export type ProfileBootstrapResponse = {
+    profile: ProfileDto;
+    preferences: PreferencesDto;
+    readiness: ReadinessDayDto;
+    nutrition: NutritionDayDto;
+};
+
+export type WorkoutsBootstrapResponse = {
+    session: WorkoutSessionDto | null;
+    templates: WorkoutTemplateDto[];
+};
+
 export type UpdateProfileInput = {
     displayName?: string;
     avatarUrl?: string | null;

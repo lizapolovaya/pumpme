@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Lexend, Space_Grotesk } from 'next/font/google';
 import './globals.css';
+import { AppShell } from './app-shell';
+import { AppProviders } from './providers';
 import { ServiceWorkerRegistration } from './sw-register';
 
 const inter = Inter({
@@ -48,8 +50,10 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${lexend.variable} ${spaceGrotesk.variable} bg-background text-on-surface antialiased`}
       >
-        <ServiceWorkerRegistration />
-        {children}
+        <AppProviders>
+          <ServiceWorkerRegistration />
+          <AppShell>{children}</AppShell>
+        </AppProviders>
       </body>
     </html>
   );

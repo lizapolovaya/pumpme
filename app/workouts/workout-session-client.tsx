@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import {
     Activity,
     CirclePlus,
@@ -10,13 +11,15 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { useEffect, useState, useTransition } from 'react';
+import { queryKeys } from '../../lib/client/app-query';
 import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
-import type { WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/backend/types';
+import type { WorkoutsBootstrapResponse, WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/backend/types';
 
 type WorkoutSessionClientProps = {
     activateOnMount: boolean;
     allowEditingCompleted?: boolean;
     initialSession: WorkoutSessionDto;
+    queryDate: string;
     templates: WorkoutTemplateDto[];
 };
 
@@ -106,8 +109,10 @@ export function WorkoutSessionClient({
     activateOnMount,
     allowEditingCompleted = false,
     initialSession,
+    queryDate,
     templates
 }: WorkoutSessionClientProps) {
+    const queryClient = useQueryClient();
     const [session, setSession] = useState(initialSession);
     const [saveState, setSaveState] = useState<SaveState>({
         error: null,
@@ -118,6 +123,10 @@ export function WorkoutSessionClient({
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
     const isReadOnly = isPending || (isCompleted && !allowEditingCompleted);
+
+    useEffect(() => {
+        setSession(initialSession);
+    }, [initialSession]);
 
     async function requestSession(
         input: RequestInfo | URL,
@@ -147,6 +156,21 @@ export function WorkoutSessionClient({
             try {
                 const nextSession = await action();
                 setSession(nextSession);
+                queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              session: nextSession
+                          }
+                        : current
+                );
+                void queryClient.invalidateQueries({
+                    predicate: (query) =>
+                        Array.isArray(query.queryKey) &&
+                        (query.queryKey[0] === 'today' ||
+                            query.queryKey[0] === 'calendar' ||
+                            query.queryKey[0] === 'progress')
+                });
                 setSaveState({
                     error: null,
                     message: successMessage
@@ -201,6 +225,14 @@ export function WorkoutSessionClient({
                     const nextSession = await requestSession(`/api/workouts/sessions/${session.id}`);
                     if (isActive) {
                         setSession(nextSession);
+                        queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
+                            current
+                                ? {
+                                      ...current,
+                                      session: nextSession
+                                  }
+                                : current
+                        );
                     }
                 } catch {
                     return;
@@ -246,7 +278,7 @@ export function WorkoutSessionClient({
 
             client.removeChannel(channel);
         };
-    }, [session.id, session.exercises]);
+    }, [allowEditingCompleted, queryClient, queryDate, session.id, session.exercises]);
 
     function handleRenameWorkout() {
         const nextTitle = window.prompt('Workout title', session.title);

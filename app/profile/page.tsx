@@ -1,27 +1,32 @@
-import { AppHeader } from '../components/app-header';
-import { createBackendServices, resolveCurrentUserContext } from '../../lib/server/backend';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { getTodayIsoDate, profileQueryOptions } from '../../lib/client/app-query';
 import { ProfileClient } from './profile-client';
 
-export default async function ProfilePage() {
-    const { userId } = await resolveCurrentUserContext();
-    const services = createBackendServices(userId);
-    const today = new Date().toISOString().slice(0, 10);
-    const [profile, preferences, readiness, nutrition] = await Promise.all([
-        services.profile.getProfile(),
-        services.preferences.getPreferences(),
-        services.readiness.getDay(today),
-        services.nutrition.getDay(today)
-    ]);
+export default function ProfilePage() {
+    const todayDate = getTodayIsoDate();
+    const { data, error, isLoading } = useQuery(profileQueryOptions(todayDate));
+
+    if (isLoading || !data) {
+        return <main className="mx-auto max-w-4xl px-6 pt-24 pb-32">Loading profile...</main>;
+    }
+
+    if (error) {
+        return (
+            <main className="mx-auto max-w-4xl px-6 pt-24 pb-32">
+                <p className="text-sm text-error">{error instanceof Error ? error.message : 'Unable to load profile.'}</p>
+            </main>
+        );
+    }
 
     return (
-        <>
-            <AppHeader />
-            <ProfileClient
-                initialNutrition={nutrition}
-                initialPreferences={preferences}
-                initialProfile={profile}
-                readiness={readiness}
-            />
-        </>
+        <ProfileClient
+            initialNutrition={data.nutrition}
+            initialPreferences={data.preferences}
+            initialProfile={data.profile}
+            readiness={data.readiness}
+            todayDate={todayDate}
+        />
     );
 }

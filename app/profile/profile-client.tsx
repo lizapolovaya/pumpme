@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     Cake,
     ChevronRight,
@@ -16,12 +17,13 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
-import { BottomNav } from '../components/bottom-nav';
+import { queryKeys } from '../../lib/client/app-query';
 import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 import type {
     NutritionDayDto,
     PreferencesDto,
     PrimaryGoal,
+    ProfileBootstrapResponse,
     ProfileDto,
     ReadinessDayDto
 } from '../../lib/server/backend/types';
@@ -31,6 +33,7 @@ type ProfileClientProps = {
     initialPreferences: PreferencesDto;
     initialProfile: ProfileDto;
     readiness: ReadinessDayDto;
+    todayDate: string;
 };
 
 const primaryGoals: PrimaryGoal[] = [
@@ -63,11 +66,15 @@ export function ProfileClient({
     initialNutrition,
     initialPreferences,
     initialProfile,
-    readiness
+    readiness,
+    todayDate
 }: ProfileClientProps) {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [profile, setProfile] = useState(initialProfile);
     const [preferences, setPreferences] = useState(initialPreferences);
+    const [nutrition, setNutrition] = useState(initialNutrition);
+    const [readinessState, setReadinessState] = useState(readiness);
     const [displayName, setDisplayName] = useState(initialProfile.displayName);
     const [age, setAge] = useState(initialProfile.age ? String(initialProfile.age) : '');
     const [primaryGoal, setPrimaryGoal] = useState<PrimaryGoal>(initialProfile.primaryGoal);
@@ -75,8 +82,8 @@ export function ProfileClient({
     const [error, setError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
-    const nutritionCompletion = initialNutrition.calories.target
-        ? Math.min(100, Math.round((initialNutrition.calories.current / initialNutrition.calories.target) * 100))
+    const nutritionCompletion = nutrition.calories.target
+        ? Math.min(100, Math.round((nutrition.calories.current / nutrition.calories.target) * 100))
         : 0;
 
     async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -89,6 +96,16 @@ export function ProfileClient({
 
         return response.json() as Promise<T>;
     }
+
+    useEffect(() => {
+        setProfile(initialProfile);
+        setPreferences(initialPreferences);
+        setNutrition(initialNutrition);
+        setReadinessState(readiness);
+        setDisplayName(initialProfile.displayName);
+        setAge(initialProfile.age ? String(initialProfile.age) : '');
+        setPrimaryGoal(initialProfile.primaryGoal);
+    }, [initialNutrition, initialPreferences, initialProfile, readiness]);
 
     useEffect(() => {
         const client = getSupabaseBrowserClient();
@@ -106,20 +123,20 @@ export function ProfileClient({
 
             syncTimeout = setTimeout(async () => {
                 try {
-                    const [nextProfile, nextPreferences] = await Promise.all([
-                        requestJson<ProfileDto>('/api/profile'),
-                        requestJson<PreferencesDto>('/api/preferences')
-                    ]);
+                    const bootstrap = await requestJson<ProfileBootstrapResponse>(`/api/profile/bootstrap?date=${todayDate}`);
 
                     if (!isActive) {
                         return;
                     }
 
-                    setProfile(nextProfile);
-                    setDisplayName(nextProfile.displayName);
-                    setAge(nextProfile.age ? String(nextProfile.age) : '');
-                    setPrimaryGoal(nextProfile.primaryGoal);
-                    setPreferences(nextPreferences);
+                    setProfile(bootstrap.profile);
+                    setDisplayName(bootstrap.profile.displayName);
+                    setAge(bootstrap.profile.age ? String(bootstrap.profile.age) : '');
+                    setPrimaryGoal(bootstrap.profile.primaryGoal);
+                    setPreferences(bootstrap.preferences);
+                    setNutrition(bootstrap.nutrition);
+                    setReadinessState(bootstrap.readiness);
+                    queryClient.setQueryData(queryKeys.profile(todayDate), bootstrap);
                 } catch {
                     return;
                 }
@@ -156,7 +173,7 @@ export function ProfileClient({
 
             client.removeChannel(channel);
         };
-    }, [profile.id]);
+    }, [profile.id, queryClient, todayDate]);
 
     function handleSaveProfile() {
         startTransition(async () => {
@@ -180,6 +197,14 @@ export function ProfileClient({
                 setDisplayName(nextProfile.displayName);
                 setAge(nextProfile.age ? String(nextProfile.age) : '');
                 setPrimaryGoal(nextProfile.primaryGoal);
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              profile: nextProfile
+                          }
+                        : current
+                );
                 setFeedback('Profile saved.');
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to save profile');
@@ -210,6 +235,14 @@ export function ProfileClient({
                 });
 
                 setProfile(nextProfile);
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              profile: nextProfile
+                          }
+                        : current
+                );
                 setFeedback('Profile photo updated.');
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update profile photo');
@@ -238,6 +271,14 @@ export function ProfileClient({
                 });
 
                 setPreferences(nextPreferences);
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              preferences: nextPreferences
+                          }
+                        : current
+                );
                 setFeedback('Measurement units updated.');
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update preferences');
@@ -268,6 +309,14 @@ export function ProfileClient({
                 });
 
                 setPreferences(nextPreferences);
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              preferences: nextPreferences
+                          }
+                        : current
+                );
                 setFeedback('Food database updated.');
             } catch (nextError) {
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update food database');
@@ -278,56 +327,54 @@ export function ProfileClient({
     function handleLogout() {
         document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
         router.push('/login');
-        router.refresh();
     }
 
     return (
-        <>
-            <main className="mx-auto max-w-4xl px-6 pt-24 pb-32">
-                <section className="mb-6 space-y-2">
-                    {feedback ? <p className="text-sm text-primary-dim">{feedback}</p> : null}
-                    {error ? <p className="text-sm text-error">{error}</p> : null}
-                </section>
+        <main className="mx-auto max-w-4xl px-6 pt-24 pb-32">
+            <section className="mb-6 space-y-2">
+                {feedback ? <p className="text-sm text-primary-dim">{feedback}</p> : null}
+                {error ? <p className="text-sm text-error">{error}</p> : null}
+            </section>
 
-                <section className="mb-12 grid grid-cols-1 items-end gap-8 md:grid-cols-12">
-                    <div className="flex justify-center md:col-span-4 md:justify-start">
-                        <div className="group relative">
-                            <div className="absolute -inset-4 rounded-full bg-secondary/10 blur-2xl transition-all group-hover:bg-secondary/20" />
-                            <div className="relative h-48 w-48 overflow-hidden rounded-full border-[6px] border-surface-container-high md:h-56 md:w-56">
-                                <img
-                                    alt="Profile picture"
-                                    className="h-full w-full object-cover"
-                                    src={profile.avatarUrl ?? 'https://placehold.co/512x512/0c0e11/c1ed00?text=PumpMe'}
-                                />
-                            </div>
-                            <button
-                                className="absolute right-2 bottom-2 rounded-full bg-primary p-3 text-on-primary-fixed shadow-2xl transition-transform hover:scale-105 active:scale-95"
-                                disabled={isPending}
-                                onClick={handleAvatarUpdate}
-                                type="button"
-                            >
-                                <Pencil className="h-4 w-4" strokeWidth={2.2} />
-                            </button>
+            <section className="mb-12 grid grid-cols-1 items-end gap-8 md:grid-cols-12">
+                <div className="flex justify-center md:col-span-4 md:justify-start">
+                    <div className="group relative">
+                        <div className="absolute -inset-4 rounded-full bg-secondary/10 blur-2xl transition-all group-hover:bg-secondary/20" />
+                        <div className="relative h-48 w-48 overflow-hidden rounded-full border-[6px] border-surface-container-high md:h-56 md:w-56">
+                            <img
+                                alt="Profile picture"
+                                className="h-full w-full object-cover"
+                                src={profile.avatarUrl ?? 'https://placehold.co/512x512/0c0e11/c1ed00?text=PumpMe'}
+                            />
                         </div>
+                        <button
+                            className="absolute right-2 bottom-2 rounded-full bg-primary p-3 text-on-primary-fixed shadow-2xl transition-transform hover:scale-105 active:scale-95"
+                            disabled={isPending}
+                            onClick={handleAvatarUpdate}
+                            type="button"
+                        >
+                            <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                        </button>
                     </div>
-                    <div className="flex flex-col items-center space-y-4 md:col-span-8 md:items-start">
-                        <div className="space-y-1">
-                            <h2 className="font-headline text-4xl font-black italic uppercase leading-none tracking-[-0.08em] text-on-surface md:text-6xl">
-                                {profile.displayName}
-                            </h2>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                className="rounded-xl bg-linear-to-br from-primary to-primary-container px-8 py-3 font-headline font-bold uppercase tracking-[-0.04em] text-on-primary-fixed transition-all hover:shadow-[0_0_20px_rgba(209,255,38,0.3)] disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={isPending}
-                                onClick={handleSaveProfile}
-                                type="button"
-                            >
-                                {isPending ? 'Saving' : 'Save Profile'}
-                            </button>
-                        </div>
+                </div>
+                <div className="flex flex-col items-center space-y-4 md:col-span-8 md:items-start">
+                    <div className="space-y-1">
+                        <h2 className="font-headline text-4xl font-black italic uppercase leading-none tracking-[-0.08em] text-on-surface md:text-6xl">
+                            {profile.displayName}
+                        </h2>
                     </div>
-                </section>
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            className="rounded-xl bg-linear-to-br from-primary to-primary-container px-8 py-3 font-headline font-bold uppercase tracking-[-0.04em] text-on-primary-fixed transition-all hover:shadow-[0_0_20px_rgba(209,255,38,0.3)] disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isPending}
+                            onClick={handleSaveProfile}
+                            type="button"
+                        >
+                            {isPending ? 'Saving' : 'Save Profile'}
+                        </button>
+                    </div>
+                </div>
+            </section>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     <div className="space-y-6 lg:col-span-2">
@@ -391,10 +438,10 @@ export function ProfileClient({
                                         Readiness Status
                                     </label>
                                     <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-surface-container-highest/50 p-4">
-                                        <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3">
                                             <RefreshCw className="h-4 w-4 text-[#4285F4]" strokeWidth={2.1} />
                                             <span className="font-body font-semibold">
-                                                {formatBand(readiness.band)} ({readiness.score ?? 0})
+                                                {formatBand(readinessState.band)} ({readinessState.score ?? 0})
                                             </span>
                                         </div>
                                         <div className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_#D1FF26]" />
@@ -529,7 +576,8 @@ export function ProfileClient({
                                         Fuel Progress
                                     </p>
                                     <p className="font-body font-medium text-on-surface">
-                                        {Math.round(initialNutrition.calories.current).toLocaleString('en-US')} / {Math.round(initialNutrition.calories.target).toLocaleString('en-US')} kcal
+                                        {Math.round(nutrition.calories.current).toLocaleString('en-US')} /{' '}
+                                        {Math.round(nutrition.calories.target).toLocaleString('en-US')} kcal
                                     </p>
                                 </div>
                                 <Sparkles className="h-4 w-4 text-on-surface-variant" strokeWidth={2.1} />
@@ -552,9 +600,6 @@ export function ProfileClient({
                         </section>
                     </div>
                 </div>
-            </main>
-
-            <BottomNav active="profile" />
-        </>
+        </main>
     );
 }
