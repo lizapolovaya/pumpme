@@ -68,6 +68,19 @@ function stableDailyId(prefix: string, userId: string, date: string): string {
     return `${prefix}-${userId}-${date}`;
 }
 
+function isMissingSupabaseColumnOrTable(error: { message?: string } | null): boolean {
+    if (!error?.message) {
+        return false;
+    }
+
+    return (
+        error.message.includes('Could not find the') ||
+        error.message.includes('does not exist') ||
+        error.message.includes('column') ||
+        error.message.includes('schema cache')
+    );
+}
+
 export async function ensureUserScaffold(client: SupabaseClient, userId: string): Promise<void> {
     const userRow = {
         id: userId,
@@ -94,19 +107,50 @@ export async function ensureUserScaffold(client: SupabaseClient, userId: string)
         throw prefsResult.error;
     }
 
-    const metricsResult = await client.from('user_metrics').upsert(
+    let metricsResult = await client.from('user_metrics').upsert(
         {
             user_id: userId,
             age: 28,
+            biological_sex: 'male',
             primary_goal: 'muscle_gain',
             height_cm: 180,
             weight_kg: 82,
+            desired_weight_kg: 85,
+            gym_sessions_per_week: 4,
             step_goal: 10000
         },
         { onConflict: 'user_id' }
     );
+    if (isMissingSupabaseColumnOrTable(metricsResult.error)) {
+        metricsResult = await client.from('user_metrics').upsert(
+            {
+                user_id: userId,
+                age: 28,
+                primary_goal: 'muscle_gain',
+                height_cm: 180,
+                weight_kg: 82,
+                step_goal: 10000
+            },
+            { onConflict: 'user_id' }
+        );
+    }
     if (metricsResult.error) {
         throw metricsResult.error;
+    }
+
+    const nutritionSettingsResult = await client.from('user_nutrition_settings').upsert(
+        {
+            user_id: userId,
+            target_mode: 'auto',
+            manual_calories_target: null,
+            manual_protein_target: null,
+            manual_carbs_target: null,
+            manual_fats_target: null
+        },
+        { onConflict: 'user_id' }
+    );
+    if (nutritionSettingsResult.error && !isMissingSupabaseColumnOrTable(nutritionSettingsResult.error)) {
+        throw nutritionSettingsResult.error;
     }
 }
 

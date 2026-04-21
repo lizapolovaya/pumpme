@@ -1,8 +1,10 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight } from 'lucide-react';
-import { getTodayIsoDate, todayQueryOptions } from '../lib/client/app-query';
+import { useEffect, useState, useTransition } from 'react';
+import { getTodayIsoDate, queryKeys, todayQueryOptions } from '../lib/client/app-query';
+import type { BootstrapResponse, NutritionDayDto, ProfileBootstrapResponse } from '../lib/server/backend/types';
 import { StartWorkoutButton } from './components/start-workout-button';
 
 const circumference = 2 * Math.PI * 40;
@@ -54,10 +56,27 @@ function toTitleCase(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function sanitizeIntegerInput(value: string): string {
+    return value.replace(/\D/g, '');
+}
+
+function asInputValue(value: number): string {
+    return String(Math.round(value));
+}
+
 export default function Home() {
+    const queryClient = useQueryClient();
     const today = new Date();
     const todayDate = getTodayIsoDate();
     const { data, error, isLoading } = useQuery(todayQueryOptions(todayDate));
+    const [isEditingNutrition, setIsEditingNutrition] = useState(false);
+    const [caloriesInput, setCaloriesInput] = useState('');
+    const [proteinInput, setProteinInput] = useState('');
+    const [carbsInput, setCarbsInput] = useState('');
+    const [fatsInput, setFatsInput] = useState('');
+    const [nutritionFeedback, setNutritionFeedback] = useState<string | null>(null);
+    const [nutritionError, setNutritionError] = useState<string | null>(null);
+    const [isPending, startTransition] = useTransition();
     const dashboard = data?.today;
 
     if (isLoading || !dashboard) {
@@ -86,8 +105,89 @@ export default function Home() {
                 : 'TBD'
         ]
     ] as const;
-    const macros = [dashboard.nutrition.protein, dashboard.nutrition.carbs, dashboard.nutrition.fats];
+    const currentNutrition = dashboard.nutrition;
+    const macros = [currentNutrition.protein, currentNutrition.carbs, currentNutrition.fats];
     const activeDays = dashboard.weeklyDiscipline.filter((day) => day.completed).length;
+    const hasCalculatedTargets = currentNutrition.calories.target > 0;
+
+    useEffect(() => {
+        setCaloriesInput(asInputValue(currentNutrition.calories.current));
+        setProteinInput(asInputValue(currentNutrition.protein.current));
+        setCarbsInput(asInputValue(currentNutrition.carbs.current));
+        setFatsInput(asInputValue(currentNutrition.fats.current));
+    }, [
+        currentNutrition.calories.current,
+        currentNutrition.carbs.current,
+        currentNutrition.fats.current,
+        currentNutrition.protein.current
+    ]);
+
+    async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+        const response = await fetch(input, init);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(payload?.error ?? 'Request failed');
+        }
+
+        return response.json() as Promise<T>;
+    }
+
+    function handleCancelNutritionEdit() {
+        setIsEditingNutrition(false);
+        setNutritionError(null);
+        setNutritionFeedback(null);
+        setCaloriesInput(asInputValue(currentNutrition.calories.current));
+        setProteinInput(asInputValue(currentNutrition.protein.current));
+        setCarbsInput(asInputValue(currentNutrition.carbs.current));
+        setFatsInput(asInputValue(currentNutrition.fats.current));
+    }
+
+    function handleSaveNutrition() {
+        startTransition(async () => {
+            setNutritionError(null);
+            setNutritionFeedback(null);
+
+            try {
+                const updatedNutrition = await requestJson<NutritionDayDto>(`/api/nutrition/today?date=${todayDate}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        caloriesCurrent: Number(caloriesInput || '0'),
+                        carbsCurrent: Number(carbsInput || '0'),
+                        fatsCurrent: Number(fatsInput || '0'),
+                        proteinCurrent: Number(proteinInput || '0')
+                    })
+                });
+
+                queryClient.setQueryData(queryKeys.today(todayDate), (current: BootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              today: {
+                                  ...current.today,
+                                  nutrition: updatedNutrition
+                              }
+                          }
+                        : current
+                );
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              nutrition: updatedNutrition
+                          }
+                        : current
+                );
+                setNutritionFeedback('Nutrition intake saved.');
+                setIsEditingNutrition(false);
+            } catch (nextError) {
+                setNutritionError(nextError instanceof Error ? nextError.message : 'Unable to save nutrition.');
+            }
+        });
+    }
 
     return (
         <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-6 pt-24 pb-32 md:max-w-5xl">
@@ -244,6 +344,81 @@ export default function Home() {
                             </span>
                         </div>
                     </div>
+
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1">
+                            {nutritionFeedback ? <p className="text-sm text-primary-dim">{nutritionFeedback}</p> : null}
+                            {nutritionError ? <p className="text-sm text-error">{nutritionError}</p> : null}
+                            {!hasCalculatedTargets ? (
+                                <p className="text-sm text-on-surface-variant">
+                                    Complete your profile metrics in Settings to calculate personalized targets.
+                                </p>
+                            ) : null}
+                        </div>
+                        {!isEditingNutrition ? (
+                            <button
+                                className="rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-2 font-headline text-xs font-black uppercase tracking-[0.08em] text-on-surface transition hover:bg-surface-bright"
+                                onClick={() => {
+                                    setNutritionFeedback(null);
+                                    setNutritionError(null);
+                                    setIsEditingNutrition(true);
+                                }}
+                                type="button"
+                            >
+                                Edit Intake
+                            </button>
+                        ) : null}
+                    </div>
+
+                    {isEditingNutrition ? (
+                        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                            {[
+                                { label: 'Calories', setter: setCaloriesInput, unit: 'kcal', value: caloriesInput },
+                                { label: 'Protein', setter: setProteinInput, unit: 'g', value: proteinInput },
+                                { label: 'Carbs', setter: setCarbsInput, unit: 'g', value: carbsInput },
+                                { label: 'Fats', setter: setFatsInput, unit: 'g', value: fatsInput }
+                            ].map(({ label, setter, unit, value }) => (
+                                <label
+                                    key={label}
+                                    className="space-y-2 rounded-2xl bg-surface-container-highest p-4"
+                                >
+                                    <span className="block font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                        {label}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            className="w-full border-none bg-transparent font-headline text-2xl font-black text-on-surface focus:ring-0"
+                                            inputMode="numeric"
+                                            onChange={(event) => setter(sanitizeIntegerInput(event.target.value))}
+                                            type="text"
+                                            value={value}
+                                        />
+                                        <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                            {unit}
+                                        </span>
+                                    </div>
+                                </label>
+                            ))}
+                            <div className="sm:col-span-2 flex gap-3">
+                                <button
+                                    className="flex-1 rounded-2xl border border-outline-variant/20 bg-surface-container-highest px-4 py-3 font-headline text-sm font-black uppercase tracking-[0.08em] text-on-surface-variant transition hover:bg-surface-bright"
+                                    disabled={isPending}
+                                    onClick={handleCancelNutritionEdit}
+                                    type="button"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="flex-1 rounded-2xl bg-linear-to-br from-primary to-primary-container px-4 py-3 font-headline text-sm font-black uppercase tracking-[0.08em] text-on-primary-fixed transition active:scale-95 disabled:opacity-60"
+                                    disabled={isPending}
+                                    onClick={handleSaveNutrition}
+                                    type="button"
+                                >
+                                    {isPending ? 'Saving' : 'Save'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
 
                     <div className="space-y-4">
                         {macros.map((macro) => (

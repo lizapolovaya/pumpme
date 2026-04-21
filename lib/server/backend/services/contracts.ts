@@ -4,6 +4,7 @@ import type {
     BootstrapResponse,
     CalendarMonthDto,
     NutritionDayDto,
+    NutritionSettingsDto,
     PreferencesDto,
     ProfileDto,
     ProgressSummaryDto,
@@ -11,6 +12,7 @@ import type {
     StartWorkoutSessionInput,
     TodayDashboardDto,
     UpdateNutritionDayInput,
+    UpdateNutritionSettingsInput,
     UpdatePreferencesInput,
     UpdateProfileInput,
     UpdateReadinessDayInput,
@@ -59,6 +61,8 @@ export interface CalendarService {
 export interface NutritionService {
     getDay(date: string): Promise<NutritionDayDto>;
     updateDay(date: string, input: UpdateNutritionDayInput): Promise<NutritionDayDto>;
+    getSettings(): Promise<NutritionSettingsDto>;
+    updateSettings(input: UpdateNutritionSettingsInput): Promise<NutritionSettingsDto>;
 }
 
 export interface ReadinessService {

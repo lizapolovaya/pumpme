@@ -4,6 +4,7 @@ import type {
     CalendarDayDetailDto,
     CalendarMonthDto,
     NutritionDayDto,
+    NutritionSettingsDto,
     PlannedWorkoutSummaryDto,
     PreferencesDto,
     ProfileDto,
@@ -12,6 +13,7 @@ import type {
     StartWorkoutSessionInput,
     TodayDashboardDto,
     UpdateNutritionDayInput,
+    UpdateNutritionSettingsInput,
     UpdatePreferencesInput,
     UpdateProfileInput,
     UpdateReadinessDayInput,
@@ -62,6 +64,8 @@ export interface WorkoutRepository {
 export interface NutritionRepository {
     getNutritionDay(userId: string, date: string): Promise<NutritionDayDto>;
     updateNutritionDay(userId: string, date: string, input: UpdateNutritionDayInput): Promise<NutritionDayDto>;
+    getNutritionSettings(userId: string): Promise<NutritionSettingsDto>;
+    updateNutritionSettings(userId: string, input: UpdateNutritionSettingsInput): Promise<NutritionSettingsDto>;
 }
 
 export interface ReadinessRepository {

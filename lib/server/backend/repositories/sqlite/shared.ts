@@ -1,7 +1,14 @@
 import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { getDatabase } from '../../db';
-import type { PreferencesDto, PrimaryGoal, ProfileDto, UnitSystem } from '../../types';
+import type {
+    BiologicalSex,
+    NutritionSettingsDto,
+    PreferencesDto,
+    PrimaryGoal,
+    ProfileDto,
+    UnitSystem
+} from '../../types';
 import { DEFAULT_LOCAL_USER_ID } from '../../context';
 
 const DEFAULT_AVATAR_URL =
@@ -60,9 +67,12 @@ type ProfileRow = {
     display_name: string;
     avatar_url: string | null;
     age: number | null;
+    biological_sex: BiologicalSex | null;
     primary_goal: PrimaryGoal;
     height_cm: number | null;
     weight_kg: number | null;
+    desired_weight_kg: number | null;
+    gym_sessions_per_week: number | null;
     step_goal: number | null;
 };
 
@@ -70,6 +80,14 @@ type PreferencesRow = {
     unit_system: UnitSystem;
     food_database_region: string;
     theme_mode: 'dark';
+};
+
+type NutritionSettingsRow = {
+    target_mode: 'auto' | 'manual';
+    manual_calories_target: number | null;
+    manual_protein_target: number | null;
+    manual_carbs_target: number | null;
+    manual_fats_target: number | null;
 };
 
 export function createId(prefix: string): string {
@@ -102,8 +120,14 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
     `);
 
     const insertMetrics = db.prepare(`
-        INSERT INTO user_metrics (user_id, age, primary_goal, height_cm, weight_kg, step_goal)
-        VALUES (@userId, @age, @primaryGoal, @heightCm, @weightKg, @stepGoal)
+        INSERT INTO user_metrics (user_id, age, biological_sex, primary_goal, height_cm, weight_kg, desired_weight_kg, gym_sessions_per_week, step_goal)
+        VALUES (@userId, @age, @biologicalSex, @primaryGoal, @heightCm, @weightKg, @desiredWeightKg, @gymSessionsPerWeek, @stepGoal)
+        ON CONFLICT(user_id) DO NOTHING
+    `);
+
+    const insertNutritionSettings = db.prepare(`
+        INSERT INTO user_nutrition_settings (user_id, target_mode, manual_calories_target, manual_protein_target, manual_carbs_target, manual_fats_target)
+        VALUES (@userId, @targetMode, @manualCaloriesTarget, @manualProteinTarget, @manualCarbsTarget, @manualFatsTarget)
         ON CONFLICT(user_id) DO NOTHING
     `);
 
@@ -125,10 +149,22 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
         insertMetrics.run({
             userId,
             age: 28,
+            biologicalSex: 'male',
             primaryGoal: 'muscle_gain',
             heightCm: 180,
             weightKg: 82,
+            desiredWeightKg: 85,
+            gymSessionsPerWeek: 4,
             stepGoal: 10000
+        });
+
+        insertNutritionSettings.run({
+            userId,
+            targetMode: 'auto',
+            manualCaloriesTarget: null,
+            manualProteinTarget: null,
+            manualCarbsTarget: null,
+            manualFatsTarget: null
         });
     });
 
@@ -283,9 +319,12 @@ export function mapProfileRow(row: ProfileRow): ProfileDto {
         displayName: row.display_name,
         avatarUrl: row.avatar_url,
         age: row.age,
+        biologicalSex: row.biological_sex,
         primaryGoal: row.primary_goal,
         heightCm: row.height_cm,
         weightKg: row.weight_kg,
+        desiredWeightKg: row.desired_weight_kg,
+        gymSessionsPerWeek: row.gym_sessions_per_week,
         stepGoal: row.step_goal
     };
 }
@@ -295,5 +334,15 @@ export function mapPreferencesRow(row: PreferencesRow): PreferencesDto {
         unitSystem: row.unit_system,
         foodDatabaseRegion: row.food_database_region,
         themeMode: row.theme_mode
+    };
+}
+
+export function mapNutritionSettingsRow(row: NutritionSettingsRow): NutritionSettingsDto {
+    return {
+        targetMode: row.target_mode,
+        manualCaloriesTarget: row.manual_calories_target,
+        manualProteinTarget: row.manual_protein_target,
+        manualCarbsTarget: row.manual_carbs_target,
+        manualFatsTarget: row.manual_fats_target
     };
 }

@@ -9,8 +9,9 @@ export async function GET(request: Request) {
         const date = parseWorkoutDate(searchParams.get('date'));
         const { userId } = await resolveCurrentUserContext();
         const services = createBackendServices(userId);
-        const [nutrition, preferences, profile, readiness] = await Promise.all([
+        const [nutrition, nutritionSettings, preferences, profile, readiness] = await Promise.all([
             services.nutrition.getDay(date),
+            services.nutrition.getSettings(),
             services.preferences.getPreferences(),
             services.profile.getProfile(),
             services.readiness.getDay(date)
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
 
         const bootstrap: ProfileBootstrapResponse = {
             nutrition,
+            nutritionSettings,
             preferences,
             profile,
             readiness

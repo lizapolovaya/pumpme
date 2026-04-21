@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import type {
     AddWorkoutExerciseInput,
     AddWorkoutSetInput,
+    BiologicalSex,
+    NutritionTargetMode,
     PrimaryGoal,
     StartWorkoutSessionInput,
     UnitSystem,
+    UpdateNutritionSettingsInput,
     UpdatePreferencesInput,
     UpdateProfileInput,
     UpdateWorkoutExerciseInput,
@@ -21,6 +24,8 @@ const PRIMARY_GOALS: readonly PrimaryGoal[] = [
 ];
 
 const UNIT_SYSTEMS: readonly UnitSystem[] = ['metric', 'imperial'];
+const BIOLOGICAL_SEXES: readonly BiologicalSex[] = ['male', 'female'];
+const NUTRITION_TARGET_MODES: readonly NutritionTargetMode[] = ['auto', 'manual'];
 
 export function jsonError(message: string, status = 400) {
     return NextResponse.json({ error: message }, { status });
@@ -71,6 +76,17 @@ export function parseProfileUpdate(body: Record<string, unknown>): UpdateProfile
         input.primaryGoal = body.primaryGoal as PrimaryGoal;
     }
 
+    if (body.biologicalSex !== undefined) {
+        if (
+            body.biologicalSex !== null &&
+            (typeof body.biologicalSex !== 'string' || !BIOLOGICAL_SEXES.includes(body.biologicalSex as BiologicalSex))
+        ) {
+            throw new Error('biologicalSex is invalid');
+        }
+
+        input.biologicalSex = body.biologicalSex as BiologicalSex | null;
+    }
+
     if (body.heightCm !== undefined) {
         if (body.heightCm !== null && (typeof body.heightCm !== 'number' || body.heightCm < 0)) {
             throw new Error('heightCm must be a non-negative number or null');
@@ -87,12 +103,62 @@ export function parseProfileUpdate(body: Record<string, unknown>): UpdateProfile
         input.weightKg = body.weightKg as number | null;
     }
 
+    if (body.desiredWeightKg !== undefined) {
+        if (body.desiredWeightKg !== null && (typeof body.desiredWeightKg !== 'number' || body.desiredWeightKg < 0)) {
+            throw new Error('desiredWeightKg must be a non-negative number or null');
+        }
+
+        input.desiredWeightKg = body.desiredWeightKg as number | null;
+    }
+
+    if (body.gymSessionsPerWeek !== undefined) {
+        if (
+            body.gymSessionsPerWeek !== null &&
+            (!Number.isInteger(body.gymSessionsPerWeek) || (body.gymSessionsPerWeek as number) < 0)
+        ) {
+            throw new Error('gymSessionsPerWeek must be a non-negative integer or null');
+        }
+
+        input.gymSessionsPerWeek = body.gymSessionsPerWeek as number | null;
+    }
+
     if (body.stepGoal !== undefined) {
         if (body.stepGoal !== null && (!Number.isInteger(body.stepGoal) || (body.stepGoal as number) < 0)) {
             throw new Error('stepGoal must be a non-negative integer or null');
         }
 
         input.stepGoal = body.stepGoal as number | null;
+    }
+
+    return input;
+}
+
+export function parseNutritionSettingsUpdate(body: Record<string, unknown>): UpdateNutritionSettingsInput {
+    const input: UpdateNutritionSettingsInput = {};
+
+    if (body.targetMode !== undefined) {
+        if (typeof body.targetMode !== 'string' || !NUTRITION_TARGET_MODES.includes(body.targetMode as NutritionTargetMode)) {
+            throw new Error('targetMode is invalid');
+        }
+
+        input.targetMode = body.targetMode as NutritionTargetMode;
+    }
+
+    for (const key of [
+        'manualCaloriesTarget',
+        'manualProteinTarget',
+        'manualCarbsTarget',
+        'manualFatsTarget'
+    ] as const) {
+        if (body[key] === undefined) {
+            continue;
+        }
+
+        if (body[key] !== null && (typeof body[key] !== 'number' || Number.isNaN(body[key]) || (body[key] as number) < 0)) {
+            throw new Error(`${key} must be a non-negative number or null`);
+        }
+
+        input[key] = body[key] as number | null;
     }
 
     return input;

@@ -19,10 +19,24 @@ create table if not exists user_preferences (
 create table if not exists user_metrics (
     user_id text primary key references users(id) on delete cascade,
     age integer,
+    biological_sex text,
     primary_goal text not null default 'athleticism',
     height_cm double precision,
     weight_kg double precision,
+    desired_weight_kg double precision,
+    gym_sessions_per_week integer,
     step_goal integer,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists user_nutrition_settings (
+    user_id text primary key references users(id) on delete cascade,
+    target_mode text not null default 'auto',
+    manual_calories_target double precision,
+    manual_protein_target double precision,
+    manual_carbs_target double precision,
+    manual_fats_target double precision,
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now())
 );

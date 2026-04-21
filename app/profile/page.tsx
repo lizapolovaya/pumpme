@@ -23,6 +23,7 @@ export default function ProfilePage() {
     return (
         <ProfileClient
             initialNutrition={data.nutrition}
+            initialNutritionSettings={data.nutritionSettings}
             initialPreferences={data.preferences}
             initialProfile={data.profile}
             readiness={data.readiness}

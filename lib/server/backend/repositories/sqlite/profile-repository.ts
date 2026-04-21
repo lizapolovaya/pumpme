@@ -15,9 +15,12 @@ export class SqliteProfileRepository implements ProfileRepository {
                     users.display_name,
                     users.avatar_url,
                     user_metrics.age,
+                    user_metrics.biological_sex,
                     user_metrics.primary_goal,
                     user_metrics.height_cm,
                     user_metrics.weight_kg,
+                    user_metrics.desired_weight_kg,
+                    user_metrics.gym_sessions_per_week,
                     user_metrics.step_goal
                 FROM users
                 INNER JOIN user_metrics ON user_metrics.user_id = users.id
@@ -41,9 +44,12 @@ export class SqliteProfileRepository implements ProfileRepository {
             displayName: input.displayName ?? current.displayName,
             avatarUrl: input.avatarUrl === undefined ? current.avatarUrl : input.avatarUrl,
             age: input.age === undefined ? current.age : input.age,
+            biologicalSex: input.biologicalSex === undefined ? current.biologicalSex : input.biologicalSex,
             primaryGoal: input.primaryGoal ?? current.primaryGoal,
             heightCm: input.heightCm === undefined ? current.heightCm : input.heightCm,
             weightKg: input.weightKg === undefined ? current.weightKg : input.weightKg,
+            desiredWeightKg: input.desiredWeightKg === undefined ? current.desiredWeightKg : input.desiredWeightKg,
+            gymSessionsPerWeek: input.gymSessionsPerWeek === undefined ? current.gymSessionsPerWeek : input.gymSessionsPerWeek,
             stepGoal: input.stepGoal === undefined ? current.stepGoal : input.stepGoal
         };
 
@@ -63,18 +69,24 @@ export class SqliteProfileRepository implements ProfileRepository {
             db.prepare(`
                 UPDATE user_metrics
                 SET age = @age,
+                    biological_sex = @biologicalSex,
                     primary_goal = @primaryGoal,
                     height_cm = @heightCm,
                     weight_kg = @weightKg,
+                    desired_weight_kg = @desiredWeightKg,
+                    gym_sessions_per_week = @gymSessionsPerWeek,
                     step_goal = @stepGoal,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE user_id = @userId
             `).run({
                 userId,
                 age: nextProfile.age,
+                biologicalSex: nextProfile.biologicalSex,
                 primaryGoal: nextProfile.primaryGoal,
                 heightCm: nextProfile.heightCm,
                 weightKg: nextProfile.weightKg,
+                desiredWeightKg: nextProfile.desiredWeightKg,
+                gymSessionsPerWeek: nextProfile.gymSessionsPerWeek,
                 stepGoal: nextProfile.stepGoal
             });
         });

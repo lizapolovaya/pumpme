@@ -34,10 +34,25 @@ export const SQLITE_MIGRATIONS: readonly Migration[] = [
             CREATE TABLE IF NOT EXISTS user_metrics (
                 user_id TEXT PRIMARY KEY,
                 age INTEGER,
+                biological_sex TEXT,
                 primary_goal TEXT NOT NULL DEFAULT 'athleticism',
                 height_cm REAL,
                 weight_kg REAL,
+                desired_weight_kg REAL,
+                gym_sessions_per_week INTEGER,
                 step_goal INTEGER,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS user_nutrition_settings (
+                user_id TEXT PRIMARY KEY,
+                target_mode TEXT NOT NULL DEFAULT 'auto',
+                manual_calories_target REAL,
+                manual_protein_target REAL,
+                manual_carbs_target REAL,
+                manual_fats_target REAL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -197,6 +212,26 @@ export const SQLITE_MIGRATIONS: readonly Migration[] = [
             CREATE INDEX IF NOT EXISTS idx_daily_nutrition_totals_user_date ON daily_nutrition_totals(user_id, date);
             CREATE INDEX IF NOT EXISTS idx_activity_daily_summaries_user_date ON activity_daily_summaries(user_id, date);
             CREATE INDEX IF NOT EXISTS idx_personal_records_user_exercise ON personal_records(user_id, exercise_id);
+        `
+    },
+    {
+        id: '0002_profile_and_nutrition_settings',
+        sql: `
+            ALTER TABLE user_metrics ADD COLUMN biological_sex TEXT;
+            ALTER TABLE user_metrics ADD COLUMN desired_weight_kg REAL;
+            ALTER TABLE user_metrics ADD COLUMN gym_sessions_per_week INTEGER;
+
+            CREATE TABLE IF NOT EXISTS user_nutrition_settings (
+                user_id TEXT PRIMARY KEY,
+                target_mode TEXT NOT NULL DEFAULT 'auto',
+                manual_calories_target REAL,
+                manual_protein_target REAL,
+                manual_carbs_target REAL,
+                manual_fats_target REAL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
         `
     }
 ];

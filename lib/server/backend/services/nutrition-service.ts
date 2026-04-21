@@ -1,6 +1,6 @@
 import type { NutritionService } from './contracts';
 import type { NutritionRepository } from '../repositories/contracts';
-import type { UpdateNutritionDayInput } from '../types';
+import type { UpdateNutritionDayInput, UpdateNutritionSettingsInput } from '../types';
 
 export class DefaultNutritionService implements NutritionService {
     constructor(
@@ -14,5 +14,13 @@ export class DefaultNutritionService implements NutritionService {
 
     async updateDay(date: string, input: UpdateNutritionDayInput) {
         return this.repository.updateNutritionDay(this.userId, date, input);
+    }
+
+    async getSettings() {
+        return this.repository.getNutritionSettings(this.userId);
+    }
+
+    async updateSettings(input: UpdateNutritionSettingsInput) {
+        return this.repository.updateNutritionSettings(this.userId, input);
     }
 }
