@@ -130,6 +130,10 @@ test('workout repository auto-recalculates totals on set edits and removals', as
 test('nutrition repository upserts daily targets and totals', async () => {
     const repositories = createSqliteRepositories();
     const initialDay = await repositories.nutrition.getNutritionDay('local-user', '2026-04-09');
+    assert.equal(initialDay.calories.current, 0);
+    assert.equal(initialDay.protein.current, 0);
+    assert.equal(initialDay.carbs.current, 0);
+    assert.equal(initialDay.fats.current, 0);
 
     const updatedDay = await repositories.nutrition.updateNutritionDay('local-user', '2026-04-09', {
         caloriesCurrent: 1800,

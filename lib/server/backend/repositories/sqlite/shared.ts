@@ -264,10 +264,10 @@ export function ensureDailyScaffold(db: Database.Database, userId: string, date:
             id: createId('nutrition-totals'),
             userId,
             date,
-            caloriesCurrent: 2440,
-            proteinCurrent: 145,
-            carbsCurrent: 210,
-            fatsCurrent: 52
+            caloriesCurrent: 0,
+            proteinCurrent: 0,
+            carbsCurrent: 0,
+            fatsCurrent: 0
         });
 
         insertActivity.run({

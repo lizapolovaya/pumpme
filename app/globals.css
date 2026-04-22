@@ -35,3 +35,8 @@ body {
     radial-gradient(circle at top right, rgba(209, 255, 38, 0.1), transparent 24rem),
     radial-gradient(circle at left center, rgba(0, 227, 253, 0.08), transparent 20rem);
 }
+
+select option {
+  color: #111417;
+  background-color: #f9f9fd;
+}

@@ -250,10 +250,10 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             id: stableDailyId('nutrition-totals', userId, date),
             user_id: userId,
             date,
-            calories_current: 2440,
-            protein_current: 145,
-            carbs_current: 210,
-            fats_current: 52
+            calories_current: 0,
+            protein_current: 0,
+            carbs_current: 0,
+            fats_current: 0
         },
         {
             onConflict: 'user_id,date',
