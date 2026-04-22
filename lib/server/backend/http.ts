@@ -3,11 +3,9 @@ import type {
     AddWorkoutExerciseInput,
     AddWorkoutSetInput,
     BiologicalSex,
-    NutritionTargetMode,
     PrimaryGoal,
     StartWorkoutSessionInput,
     UnitSystem,
-    UpdateNutritionSettingsInput,
     UpdatePreferencesInput,
     UpdateProfileInput,
     UpdateWorkoutExerciseInput,
@@ -25,7 +23,6 @@ const PRIMARY_GOALS: readonly PrimaryGoal[] = [
 
 const UNIT_SYSTEMS: readonly UnitSystem[] = ['metric', 'imperial'];
 const BIOLOGICAL_SEXES: readonly BiologicalSex[] = ['male', 'female'];
-const NUTRITION_TARGET_MODES: readonly NutritionTargetMode[] = ['auto', 'manual'];
 
 export function jsonError(message: string, status = 400) {
     return NextResponse.json({ error: message }, { status });
@@ -128,37 +125,6 @@ export function parseProfileUpdate(body: Record<string, unknown>): UpdateProfile
         }
 
         input.stepGoal = body.stepGoal as number | null;
-    }
-
-    return input;
-}
-
-export function parseNutritionSettingsUpdate(body: Record<string, unknown>): UpdateNutritionSettingsInput {
-    const input: UpdateNutritionSettingsInput = {};
-
-    if (body.targetMode !== undefined) {
-        if (typeof body.targetMode !== 'string' || !NUTRITION_TARGET_MODES.includes(body.targetMode as NutritionTargetMode)) {
-            throw new Error('targetMode is invalid');
-        }
-
-        input.targetMode = body.targetMode as NutritionTargetMode;
-    }
-
-    for (const key of [
-        'manualCaloriesTarget',
-        'manualProteinTarget',
-        'manualCarbsTarget',
-        'manualFatsTarget'
-    ] as const) {
-        if (body[key] === undefined) {
-            continue;
-        }
-
-        if (body[key] !== null && (typeof body[key] !== 'number' || Number.isNaN(body[key]) || (body[key] as number) < 0)) {
-            throw new Error(`${key} must be a non-negative number or null`);
-        }
-
-        input[key] = body[key] as number | null;
     }
 
     return input;

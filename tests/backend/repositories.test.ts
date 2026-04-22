@@ -16,6 +16,7 @@ function setTestDatabase() {
 beforeEach(() => {
     closeDatabase();
     setTestDatabase();
+    process.env.PUMPME_STORAGE_DRIVER = 'sqlite';
 });
 
 afterEach(() => {
@@ -25,6 +26,7 @@ afterEach(() => {
         tempDir = '';
     }
     delete process.env.PUMPME_SQLITE_PATH;
+    delete process.env.PUMPME_STORAGE_DRIVER;
 });
 
 test('profile repository scaffolds and persists updates', async () => {
@@ -127,22 +129,21 @@ test('workout repository auto-recalculates totals on set edits and removals', as
 
 test('nutrition repository upserts daily targets and totals', async () => {
     const repositories = createSqliteRepositories();
+    const initialDay = await repositories.nutrition.getNutritionDay('local-user', '2026-04-09');
 
     const updatedDay = await repositories.nutrition.updateNutritionDay('local-user', '2026-04-09', {
         caloriesCurrent: 1800,
-        caloriesTarget: 2400,
         proteinCurrent: 145,
-        proteinTarget: 180
     });
 
     assert.equal(updatedDay.calories.current, 1800);
-    assert.equal(updatedDay.calories.target, 2400);
     assert.equal(updatedDay.protein.current, 145);
-    assert.equal(updatedDay.protein.target, 180);
+    assert.equal(updatedDay.calories.target, initialDay.calories.target);
+    assert.equal(updatedDay.protein.target, initialDay.protein.target);
 
     const fetchedDay = await repositories.nutrition.getNutritionDay('local-user', '2026-04-09');
     assert.equal(fetchedDay.calories.current, 1800);
-    assert.equal(fetchedDay.protein.target, 180);
+    assert.equal(fetchedDay.protein.target, initialDay.protein.target);
 });
 
 test('default today session is empty when no workout input exists yet', async () => {

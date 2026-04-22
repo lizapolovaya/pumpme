@@ -1,11 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NutritionRepository } from '../contracts';
-import type {
-    NutritionSettingsDto,
-    UpdateNutritionDayInput,
-    UpdateNutritionSettingsInput
-} from '../../types';
-import { getEffectiveNutritionTargets } from '../../nutrition-targets';
+import type { UpdateNutritionDayInput } from '../../types';
+import { getAutoNutritionTargets } from '../../nutrition-targets';
 import { ensureScaffoldForDate, toIsoDate } from './shared';
 import { requireSupabaseOk } from './client';
 
@@ -14,14 +10,6 @@ type NutritionTotalsRow = {
     protein_current: number;
     carbs_current: number;
     fats_current: number;
-};
-
-type NutritionSettingsRow = {
-    target_mode: 'auto' | 'manual';
-    manual_calories_target: number | null;
-    manual_protein_target: number | null;
-    manual_carbs_target: number | null;
-    manual_fats_target: number | null;
 };
 
 type ProfileMetricsRow = {
@@ -66,16 +54,6 @@ function mapProfileRow(row: ProfileMetricsRow) {
     };
 }
 
-function mapNutritionSettingsRow(row: NutritionSettingsRow): NutritionSettingsDto {
-    return {
-        targetMode: row.target_mode,
-        manualCaloriesTarget: row.manual_calories_target,
-        manualProteinTarget: row.manual_protein_target,
-        manualCarbsTarget: row.manual_carbs_target,
-        manualFatsTarget: row.manual_fats_target
-    };
-}
-
 function isMissingSchemaError(error: { message?: string } | null): boolean {
     if (!error?.message) {
         return false;
@@ -98,7 +76,6 @@ export class SupabaseNutritionRepository implements NutritionRepository {
             .eq('date', normalizedDate)
             .single();
         const totals = requireSupabaseOk(totalsResult as any, 'Nutrition totals not found') as NutritionTotalsRow;
-        const settings = await this.getNutritionSettings(userId);
         const profileResult = await this.client
             .from('users')
             .select('id,email,display_name,avatar_url,user_metrics ( age, biological_sex, primary_goal, height_cm, weight_kg, desired_weight_kg, gym_sessions_per_week, step_goal )')
@@ -112,7 +89,7 @@ export class SupabaseNutritionRepository implements NutritionRepository {
                   .single()
             : profileResult;
         const profile = mapProfileRow(requireSupabaseOk(fallbackProfileResult as any, 'Profile not found') as ProfileMetricsRow);
-        const targets = getEffectiveNutritionTargets(profile, settings);
+        const targets = getAutoNutritionTargets(profile);
 
         return {
             date: normalizedDate,
@@ -143,54 +120,5 @@ export class SupabaseNutritionRepository implements NutritionRepository {
         }
 
         return this.getNutritionDay(userId, normalizedDate);
-    }
-
-    async getNutritionSettings(userId: string): Promise<NutritionSettingsDto> {
-        await ensureScaffoldForDate(this.client, userId, toIsoDate(new Date()));
-        const result = await this.client
-            .from('user_nutrition_settings')
-            .select('target_mode,manual_calories_target,manual_protein_target,manual_carbs_target,manual_fats_target')
-            .eq('user_id', userId)
-            .single();
-
-        if (isMissingSchemaError(result.error)) {
-            return {
-                targetMode: 'auto',
-                manualCaloriesTarget: null,
-                manualProteinTarget: null,
-                manualCarbsTarget: null,
-                manualFatsTarget: null
-            };
-        }
-
-        return mapNutritionSettingsRow(requireSupabaseOk(result as any, 'Nutrition settings not found') as NutritionSettingsRow);
-    }
-
-    async updateNutritionSettings(userId: string, input: UpdateNutritionSettingsInput): Promise<NutritionSettingsDto> {
-        await ensureScaffoldForDate(this.client, userId, toIsoDate(new Date()));
-        const current = await this.getNutritionSettings(userId);
-        const result = await this.client
-            .from('user_nutrition_settings')
-            .update({
-                target_mode: input.targetMode ?? current.targetMode,
-                manual_calories_target:
-                    input.manualCaloriesTarget === undefined ? current.manualCaloriesTarget : input.manualCaloriesTarget,
-                manual_protein_target:
-                    input.manualProteinTarget === undefined ? current.manualProteinTarget : input.manualProteinTarget,
-                manual_carbs_target:
-                    input.manualCarbsTarget === undefined ? current.manualCarbsTarget : input.manualCarbsTarget,
-                manual_fats_target: input.manualFatsTarget === undefined ? current.manualFatsTarget : input.manualFatsTarget
-            })
-            .eq('user_id', userId);
-
-        if (isMissingSchemaError(result.error)) {
-            throw new Error('Supabase schema update required before nutrition settings can be saved');
-        }
-
-        if (result.error) {
-            throw result.error;
-        }
-
-        return this.getNutritionSettings(userId);
     }
 }

@@ -89,7 +89,10 @@ export async function ensureUserScaffold(client: SupabaseClient, userId: string)
         avatar_url: DEFAULT_AVATAR_URL
     };
 
-    const userResult = await client.from('users').upsert(userRow, { onConflict: 'id' });
+    const userResult = await client.from('users').upsert(userRow, {
+        onConflict: 'id',
+        ignoreDuplicates: true
+    });
     if (userResult.error) {
         throw userResult.error;
     }
@@ -101,7 +104,10 @@ export async function ensureUserScaffold(client: SupabaseClient, userId: string)
             food_database_region: 'US',
             theme_mode: 'dark'
         },
-        { onConflict: 'user_id' }
+        {
+            onConflict: 'user_id',
+            ignoreDuplicates: true
+        }
     );
     if (prefsResult.error) {
         throw prefsResult.error;
@@ -119,7 +125,10 @@ export async function ensureUserScaffold(client: SupabaseClient, userId: string)
             gym_sessions_per_week: 4,
             step_goal: 10000
         },
-        { onConflict: 'user_id' }
+        {
+            onConflict: 'user_id',
+            ignoreDuplicates: true
+        }
     );
     if (isMissingSupabaseColumnOrTable(metricsResult.error)) {
         metricsResult = await client.from('user_metrics').upsert(
@@ -131,27 +140,16 @@ export async function ensureUserScaffold(client: SupabaseClient, userId: string)
                 weight_kg: 82,
                 step_goal: 10000
             },
-            { onConflict: 'user_id' }
+            {
+                onConflict: 'user_id',
+                ignoreDuplicates: true
+            }
         );
     }
     if (metricsResult.error) {
         throw metricsResult.error;
     }
 
-    const nutritionSettingsResult = await client.from('user_nutrition_settings').upsert(
-        {
-            user_id: userId,
-            target_mode: 'auto',
-            manual_calories_target: null,
-            manual_protein_target: null,
-            manual_carbs_target: null,
-            manual_fats_target: null
-        },
-        { onConflict: 'user_id' }
-    );
-    if (nutritionSettingsResult.error && !isMissingSupabaseColumnOrTable(nutritionSettingsResult.error)) {
-        throw nutritionSettingsResult.error;
-    }
 }
 
 export async function ensureExerciseCatalog(client: SupabaseClient): Promise<void> {
@@ -179,7 +177,10 @@ export async function ensureDefaultTemplates(client: SupabaseClient, userId: str
             name: template.name,
             focus: template.focus
         })),
-        { onConflict: 'id' }
+        {
+            onConflict: 'id',
+            ignoreDuplicates: true
+        }
     );
     if (templatesResult.error) {
         throw templatesResult.error;
@@ -197,7 +198,7 @@ export async function ensureDefaultTemplates(client: SupabaseClient, userId: str
 
     const templateExercisesResult = await client
         .from('template_exercises')
-        .upsert(templateExerciseRows, { onConflict: 'id' });
+        .upsert(templateExerciseRows, { onConflict: 'id', ignoreDuplicates: true });
     if (templateExercisesResult.error) {
         throw templateExercisesResult.error;
     }
@@ -216,7 +217,10 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             headline: 'Excellent',
             summary: 'Your CNS is fully recovered. Optimal for high-intensity training today.'
         },
-        { onConflict: 'user_id,date' }
+        {
+            onConflict: 'user_id,date',
+            ignoreDuplicates: true
+        }
     );
     if (readinessResult.error) {
         throw readinessResult.error;
@@ -232,7 +236,10 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             carbs_target: 350,
             fats_target: 75
         },
-        { onConflict: 'user_id,date' }
+        {
+            onConflict: 'user_id,date',
+            ignoreDuplicates: true
+        }
     );
     if (targetsResult.error) {
         throw targetsResult.error;
@@ -248,7 +255,10 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             carbs_current: 210,
             fats_current: 52
         },
-        { onConflict: 'user_id,date' }
+        {
+            onConflict: 'user_id,date',
+            ignoreDuplicates: true
+        }
     );
     if (totalsResult.error) {
         throw totalsResult.error;
@@ -262,7 +272,10 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             steps: 8500,
             active_minutes: 74
         },
-        { onConflict: 'user_id,date' }
+        {
+            onConflict: 'user_id,date',
+            ignoreDuplicates: true
+        }
     );
     if (activityResult.error) {
         throw activityResult.error;

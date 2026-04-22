@@ -79,6 +79,22 @@ export default function Home() {
     const [isPending, startTransition] = useTransition();
     const dashboard = data?.today;
 
+    useEffect(() => {
+        if (!dashboard) {
+            return;
+        }
+
+        setCaloriesInput(asInputValue(dashboard.nutrition.calories.current));
+        setProteinInput(asInputValue(dashboard.nutrition.protein.current));
+        setCarbsInput(asInputValue(dashboard.nutrition.carbs.current));
+        setFatsInput(asInputValue(dashboard.nutrition.fats.current));
+    }, [
+        dashboard?.nutrition.calories.current,
+        dashboard?.nutrition.carbs.current,
+        dashboard?.nutrition.fats.current,
+        dashboard?.nutrition.protein.current
+    ]);
+
     if (isLoading || !dashboard) {
         return <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-6 pt-24 pb-32 md:max-w-5xl">Loading dashboard...</main>;
     }
@@ -106,24 +122,20 @@ export default function Home() {
         ]
     ] as const;
     const currentNutrition = dashboard.nutrition;
-    const macros = [currentNutrition.protein, currentNutrition.carbs, currentNutrition.fats];
+    const nutritionMetrics = [
+        currentNutrition.calories,
+        currentNutrition.protein,
+        currentNutrition.carbs,
+        currentNutrition.fats
+    ];
     const activeDays = dashboard.weeklyDiscipline.filter((day) => day.completed).length;
     const hasCalculatedTargets = currentNutrition.calories.target > 0;
 
-    useEffect(() => {
-        setCaloriesInput(asInputValue(currentNutrition.calories.current));
-        setProteinInput(asInputValue(currentNutrition.protein.current));
-        setCarbsInput(asInputValue(currentNutrition.carbs.current));
-        setFatsInput(asInputValue(currentNutrition.fats.current));
-    }, [
-        currentNutrition.calories.current,
-        currentNutrition.carbs.current,
-        currentNutrition.fats.current,
-        currentNutrition.protein.current
-    ]);
-
     async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-        const response = await fetch(input, init);
+        const response = await fetch(input, {
+            ...init,
+            cache: 'no-store'
+        });
 
         if (!response.ok) {
             const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -332,17 +344,7 @@ export default function Home() {
                                 NUTRITION
                             </h3>
                         </div>
-                        <div className="text-right">
-                            <strong className="block font-label text-2xl font-black">
-                                {Math.max(
-                                    0,
-                                    Math.round(dashboard.nutrition.calories.target - dashboard.nutrition.calories.current)
-                                ).toLocaleString('en-US')}
-                            </strong>
-                            <span className="font-label text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">
-                                kcal left
-                            </span>
-                        </div>
+                        <ArrowUpRight className="h-5 w-5 text-tertiary" strokeWidth={2.4} />
                     </div>
 
                     <div className="mb-4 flex items-center justify-between gap-3">
@@ -421,7 +423,7 @@ export default function Home() {
                     ) : null}
 
                     <div className="space-y-4">
-                        {macros.map((macro) => (
+                        {nutritionMetrics.map((macro) => (
                             <div key={macro.key} className="space-y-1.5">
                                 <div className="flex items-center justify-between gap-4 font-label text-[11px] font-bold uppercase tracking-[0.14em]">
                                     <span className="text-on-surface-variant">{toTitleCase(macro.key)}</span>

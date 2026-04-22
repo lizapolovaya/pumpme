@@ -32,7 +32,10 @@ export const queryKeys = {
 };
 
 export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-    const response = await fetch(input, init);
+    const response = await fetch(input, {
+        ...init,
+        cache: 'no-store'
+    });
 
     if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;

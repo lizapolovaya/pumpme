@@ -33,6 +33,7 @@ function jsonRequest(url: string, method: string, body: Record<string, unknown>)
 beforeEach(() => {
     closeDatabase();
     setTestDatabase();
+    process.env.PUMPME_STORAGE_DRIVER = 'sqlite';
 });
 
 afterEach(() => {
@@ -42,6 +43,7 @@ afterEach(() => {
         tempDir = '';
     }
     delete process.env.PUMPME_SQLITE_PATH;
+    delete process.env.PUMPME_STORAGE_DRIVER;
 });
 
 test('profile and preferences routes read and update backend state', async () => {
@@ -90,16 +92,14 @@ test('nutrition route validates payloads and persists updates', async () => {
     const validResponse = await nutritionRoute.PATCH(
         jsonRequest('http://localhost/api/nutrition/today?date=2026-04-09', 'PATCH', {
             caloriesCurrent: 2100,
-            caloriesTarget: 2500,
             proteinCurrent: 160,
-            proteinTarget: 180
         })
     );
 
     assert.equal(validResponse.status, 200);
     const nutrition = await validResponse.json();
     assert.equal(nutrition.calories.current, 2100);
-    assert.equal(nutrition.protein.target, 180);
+    assert.ok(nutrition.protein.target > 0);
 });
 
 test('bootstrap and workout routes expose a coherent session flow', async () => {

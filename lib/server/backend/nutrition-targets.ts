@@ -1,8 +1,4 @@
-import type {
-    NutritionSettingsDto,
-    ProfileDto,
-    UpdateNutritionDayInput
-} from './types';
+import type { ProfileDto, UpdateNutritionDayInput } from './types';
 
 export type EffectiveNutritionTargets = Required<
     Pick<UpdateNutritionDayInput, 'caloriesTarget' | 'proteinTarget' | 'carbsTarget' | 'fatsTarget'>
@@ -18,7 +14,8 @@ export function hasAutoNutritionInputs(profile: ProfileDto): boolean {
         profile.age !== null &&
         profile.heightCm !== null &&
         profile.weightKg !== null &&
-        profile.gymSessionsPerWeek !== null
+        profile.gymSessionsPerWeek !== null &&
+        profile.desiredWeightKg !== null
     );
 }
 
@@ -54,6 +51,22 @@ function getCalorieAdjustment(currentWeightKg: number, desiredWeightKg: number |
     return 0;
 }
 
+function getGoalCalorieAdjustment(profile: ProfileDto): number {
+    switch (profile.primaryGoal) {
+        case 'muscle_gain':
+            return 250;
+        case 'fat_loss':
+            return -350;
+        case 'strength':
+            return 100;
+        case 'maintenance':
+        case 'athleticism':
+            return 0;
+        default:
+            return 0;
+    }
+}
+
 export function getAutoNutritionTargets(profile: ProfileDto): EffectiveNutritionTargets {
     if (!hasAutoNutritionInputs(profile)) {
         return {
@@ -70,8 +83,15 @@ export function getAutoNutritionTargets(profile: ProfileDto): EffectiveNutrition
     const biologicalSexOffset = profile.biologicalSex === 'male' ? 5 : -161;
     const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + biologicalSexOffset;
     const activityMultiplier = getActivityMultiplier(profile.gymSessionsPerWeek ?? 0);
+    const desiredWeightAdjustment = getCalorieAdjustment(weightKg, profile.desiredWeightKg);
+    const goalAdjustment = getGoalCalorieAdjustment(profile);
     const caloriesTarget = roundTarget(
-        bmr * activityMultiplier + getCalorieAdjustment(weightKg, profile.desiredWeightKg)
+        bmr * activityMultiplier +
+            (profile.primaryGoal === 'fat_loss'
+                ? Math.min(goalAdjustment, desiredWeightAdjustment)
+                : profile.primaryGoal === 'muscle_gain'
+                  ? Math.max(goalAdjustment, desiredWeightAdjustment)
+                  : desiredWeightAdjustment + goalAdjustment)
     );
     const proteinWeightBasis = profile.desiredWeightKg ?? weightKg;
     const proteinTarget = roundTarget(proteinWeightBasis * 1.8);
@@ -85,20 +105,4 @@ export function getAutoNutritionTargets(profile: ProfileDto): EffectiveNutrition
         carbsTarget,
         fatsTarget
     };
-}
-
-export function getEffectiveNutritionTargets(
-    profile: ProfileDto,
-    settings: NutritionSettingsDto
-): EffectiveNutritionTargets {
-    if (settings.targetMode === 'manual') {
-        return {
-            caloriesTarget: roundTarget(settings.manualCaloriesTarget ?? 0),
-            proteinTarget: roundTarget(settings.manualProteinTarget ?? 0),
-            carbsTarget: roundTarget(settings.manualCarbsTarget ?? 0),
-            fatsTarget: roundTarget(settings.manualFatsTarget ?? 0)
-        };
-    }
-
-    return getAutoNutritionTargets(profile);
 }

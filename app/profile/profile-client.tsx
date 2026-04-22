@@ -24,8 +24,6 @@ import { hasAutoNutritionInputs } from '../../lib/server/backend/nutrition-targe
 import type {
     BiologicalSex,
     NutritionDayDto,
-    NutritionSettingsDto,
-    NutritionTargetMode,
     PreferencesDto,
     PrimaryGoal,
     ProfileBootstrapResponse,
@@ -35,7 +33,6 @@ import type {
 
 type ProfileClientProps = {
     initialNutrition: NutritionDayDto;
-    initialNutritionSettings: NutritionSettingsDto;
     initialPreferences: PreferencesDto;
     initialProfile: ProfileDto;
     readiness: ReadinessDayDto;
@@ -117,36 +114,8 @@ function MetricField({ icon, label, onChange, value }: MetricFieldProps) {
     );
 }
 
-type MacroInputProps = {
-    label: string;
-    onChange: (value: string) => void;
-    unit: string;
-    value: string;
-};
-
-function MacroInput({ label, onChange, unit, value }: MacroInputProps) {
-    return (
-        <div className="space-y-2">
-            <label className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">{label}</label>
-            <div className="flex items-center gap-3 rounded-xl bg-surface-container-highest p-4">
-                <input
-                    className="w-full border-none bg-transparent font-body font-semibold text-on-surface focus:ring-0"
-                    inputMode="numeric"
-                    onChange={(event) => onChange(sanitizeIntegerInput(event.target.value))}
-                    type="text"
-                    value={value}
-                />
-                <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                    {unit}
-                </span>
-            </div>
-        </div>
-    );
-}
-
 export function ProfileClient({
     initialNutrition,
-    initialNutritionSettings,
     initialPreferences,
     initialProfile,
     readiness,
@@ -157,7 +126,6 @@ export function ProfileClient({
     const [profile, setProfile] = useState(initialProfile);
     const [preferences, setPreferences] = useState(initialPreferences);
     const [nutrition, setNutrition] = useState(initialNutrition);
-    const [nutritionSettings, setNutritionSettings] = useState(initialNutritionSettings);
     const [readinessState, setReadinessState] = useState(readiness);
     const [displayName, setDisplayName] = useState(initialProfile.displayName);
     const [age, setAge] = useState(asInputValue(initialProfile.age));
@@ -167,11 +135,6 @@ export function ProfileClient({
     const [gymSessionsPerWeek, setGymSessionsPerWeek] = useState(asInputValue(initialProfile.gymSessionsPerWeek));
     const [primaryGoal, setPrimaryGoal] = useState<PrimaryGoal>(initialProfile.primaryGoal);
     const [biologicalSex, setBiologicalSex] = useState<BiologicalSex | ''>(initialProfile.biologicalSex ?? '');
-    const [targetMode, setTargetMode] = useState<NutritionTargetMode>(initialNutritionSettings.targetMode);
-    const [manualCaloriesTarget, setManualCaloriesTarget] = useState(asInputValue(initialNutritionSettings.manualCaloriesTarget));
-    const [manualProteinTarget, setManualProteinTarget] = useState(asInputValue(initialNutritionSettings.manualProteinTarget));
-    const [manualCarbsTarget, setManualCarbsTarget] = useState(asInputValue(initialNutritionSettings.manualCarbsTarget));
-    const [manualFatsTarget, setManualFatsTarget] = useState(asInputValue(initialNutritionSettings.manualFatsTarget));
     const [feedback, setFeedback] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -179,10 +142,13 @@ export function ProfileClient({
     const nutritionCompletion = nutrition.calories.target
         ? Math.min(100, Math.round((nutrition.calories.current / nutrition.calories.target) * 100))
         : 0;
-    const isAutoModeIncomplete = targetMode === 'auto' && !hasAutoNutritionInputs(profile);
+    const isAutoModeIncomplete = !hasAutoNutritionInputs(profile);
 
     async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-        const response = await fetch(input, init);
+        const response = await fetch(input, {
+            ...init,
+            cache: 'no-store'
+        });
 
         if (!response.ok) {
             const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -196,7 +162,6 @@ export function ProfileClient({
         setProfile(bootstrap.profile);
         setPreferences(bootstrap.preferences);
         setNutrition(bootstrap.nutrition);
-        setNutritionSettings(bootstrap.nutritionSettings);
         setReadinessState(bootstrap.readiness);
         setDisplayName(bootstrap.profile.displayName);
         setAge(asInputValue(bootstrap.profile.age));
@@ -206,11 +171,6 @@ export function ProfileClient({
         setGymSessionsPerWeek(asInputValue(bootstrap.profile.gymSessionsPerWeek));
         setPrimaryGoal(bootstrap.profile.primaryGoal);
         setBiologicalSex(bootstrap.profile.biologicalSex ?? '');
-        setTargetMode(bootstrap.nutritionSettings.targetMode);
-        setManualCaloriesTarget(asInputValue(bootstrap.nutritionSettings.manualCaloriesTarget));
-        setManualProteinTarget(asInputValue(bootstrap.nutritionSettings.manualProteinTarget));
-        setManualCarbsTarget(asInputValue(bootstrap.nutritionSettings.manualCarbsTarget));
-        setManualFatsTarget(asInputValue(bootstrap.nutritionSettings.manualFatsTarget));
     }
 
     async function refreshBootstrap() {
@@ -223,12 +183,11 @@ export function ProfileClient({
     useEffect(() => {
         syncBootstrapState({
             nutrition: initialNutrition,
-            nutritionSettings: initialNutritionSettings,
             preferences: initialPreferences,
             profile: initialProfile,
             readiness
         });
-    }, [initialNutrition, initialNutritionSettings, initialPreferences, initialProfile, readiness]);
+    }, [initialNutrition, initialPreferences, initialProfile, readiness]);
 
     useEffect(() => {
         const client = getSupabaseBrowserClient();
@@ -284,12 +243,6 @@ export function ProfileClient({
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',
-                table: 'user_nutrition_settings',
-                filter: `user_id=eq.${profile.id}`
-            }, syncProfileState)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
                 table: 'daily_nutrition_totals',
                 filter: `user_id=eq.${profile.id}`
             }, syncProfileState)
@@ -312,37 +265,31 @@ export function ProfileClient({
             setError(null);
 
             try {
-                await Promise.all([
-                    requestJson<ProfileDto>('/api/profile', {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            age: parseNullableInteger(age),
-                            biologicalSex: biologicalSex || null,
-                            desiredWeightKg: parseNullableInteger(desiredWeightKg),
-                            displayName: displayName.trim(),
-                            gymSessionsPerWeek: parseNullableInteger(gymSessionsPerWeek),
-                            heightCm: parseNullableInteger(heightCm),
-                            primaryGoal,
-                            weightKg: parseNullableInteger(weightKg)
-                        })
-                    }),
-                    requestJson<NutritionSettingsDto>('/api/nutrition/settings', {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            manualCaloriesTarget: targetMode === 'manual' ? parseNullableInteger(manualCaloriesTarget) : null,
-                            manualCarbsTarget: targetMode === 'manual' ? parseNullableInteger(manualCarbsTarget) : null,
-                            manualFatsTarget: targetMode === 'manual' ? parseNullableInteger(manualFatsTarget) : null,
-                            manualProteinTarget: targetMode === 'manual' ? parseNullableInteger(manualProteinTarget) : null,
-                            targetMode
-                        })
+                const nextProfile = await requestJson<ProfileDto>('/api/profile', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        age: parseNullableInteger(age),
+                        biologicalSex: biologicalSex || null,
+                        desiredWeightKg: parseNullableInteger(desiredWeightKg),
+                        displayName: displayName.trim(),
+                        gymSessionsPerWeek: parseNullableInteger(gymSessionsPerWeek),
+                        heightCm: parseNullableInteger(heightCm),
+                        primaryGoal,
+                        weightKg: parseNullableInteger(weightKg)
                     })
-                ]);
+                });
+                setProfile(nextProfile);
+                queryClient.setQueryData(queryKeys.profile(todayDate), (current: ProfileBootstrapResponse | undefined) =>
+                    current
+                        ? {
+                              ...current,
+                              profile: nextProfile
+                          }
+                        : current
+                );
 
                 await refreshBootstrap();
                 void queryClient.invalidateQueries({ queryKey: queryKeys.today(todayDate) });
@@ -464,10 +411,6 @@ export function ProfileClient({
                 setError(nextError instanceof Error ? nextError.message : 'Unable to update food database');
             }
         });
-    }
-
-    function handleUseAutoTargets() {
-        setTargetMode('auto');
     }
 
     function handleLogout() {
@@ -643,83 +586,35 @@ export function ProfileClient({
                             <div>
                                 <h3 className="font-headline text-xl font-bold uppercase tracking-[-0.04em]">Nutrition Targets</h3>
                                 <p className="mt-2 text-sm text-on-surface-variant">
-                                    Targets are personalized from your profile metrics or manually overridden.
+                                    Planned calories and macros are calculated automatically from your body metrics, activity, and goal.
                                 </p>
                             </div>
                             <Sparkles className="h-4 w-4 text-on-surface-variant" strokeWidth={2.1} />
                         </div>
 
-                        <div className="flex rounded-xl bg-surface-container-highest p-1">
-                            <button
-                                className={`flex-1 rounded-lg py-2 font-headline text-xs font-bold uppercase ${
-                                    targetMode === 'auto'
-                                        ? 'bg-surface-bright text-primary shadow-lg'
-                                        : 'text-on-surface-variant hover:text-on-surface'
-                                }`}
-                                disabled={isPending}
-                                onClick={() => setTargetMode('auto')}
-                                type="button"
-                            >
-                                Auto
-                            </button>
-                            <button
-                                className={`flex-1 rounded-lg py-2 font-headline text-xs font-bold uppercase ${
-                                    targetMode === 'manual'
-                                        ? 'bg-surface-bright text-primary shadow-lg'
-                                        : 'text-on-surface-variant hover:text-on-surface'
-                                }`}
-                                disabled={isPending}
-                                onClick={() => setTargetMode('manual')}
-                                type="button"
-                            >
-                                Manual Override
-                            </button>
+                        {isAutoModeIncomplete ? (
+                            <p className="rounded-2xl border border-outline-variant/20 bg-surface-container-highest p-4 text-sm text-on-surface-variant">
+                                Complete sex, age, height, current weight, desired weight, and gym classes per week to calculate your nutrition targets.
+                            </p>
+                        ) : null}
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-surface-container-highest p-4">
+                                <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Calories</p>
+                                <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.calories.target)}</p>
+                            </div>
+                            <div className="rounded-2xl bg-surface-container-highest p-4">
+                                <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Protein</p>
+                                <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.protein.target)}g</p>
+                            </div>
+                            <div className="rounded-2xl bg-surface-container-highest p-4">
+                                <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Carbs</p>
+                                <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.carbs.target)}g</p>
+                            </div>
+                            <div className="rounded-2xl bg-surface-container-highest p-4">
+                                <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Fats</p>
+                                <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.fats.target)}g</p>
+                            </div>
                         </div>
-
-                        {targetMode === 'auto' ? (
-                            <div className="space-y-4">
-                                {isAutoModeIncomplete ? (
-                                    <p className="rounded-2xl border border-outline-variant/20 bg-surface-container-highest p-4 text-sm text-on-surface-variant">
-                                        Complete sex, age, height, current weight, and gym classes per week to calculate your nutrition targets.
-                                    </p>
-                                ) : null}
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <div className="rounded-2xl bg-surface-container-highest p-4">
-                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Calories</p>
-                                        <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.calories.target)}</p>
-                                    </div>
-                                    <div className="rounded-2xl bg-surface-container-highest p-4">
-                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Protein</p>
-                                        <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.protein.target)}g</p>
-                                    </div>
-                                    <div className="rounded-2xl bg-surface-container-highest p-4">
-                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Carbs</p>
-                                        <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.carbs.target)}g</p>
-                                    </div>
-                                    <div className="rounded-2xl bg-surface-container-highest p-4">
-                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Fats</p>
-                                        <p className="mt-2 font-headline text-3xl font-black">{Math.round(nutrition.fats.target)}g</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <MacroInput label="Calories" onChange={setManualCaloriesTarget} unit="kcal" value={manualCaloriesTarget} />
-                                    <MacroInput label="Protein" onChange={setManualProteinTarget} unit="g" value={manualProteinTarget} />
-                                    <MacroInput label="Carbs" onChange={setManualCarbsTarget} unit="g" value={manualCarbsTarget} />
-                                    <MacroInput label="Fats" onChange={setManualFatsTarget} unit="g" value={manualFatsTarget} />
-                                </div>
-                                <button
-                                    className="rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-3 font-headline text-xs font-black uppercase tracking-[0.08em] text-on-surface-variant transition hover:bg-surface-bright"
-                                    disabled={isPending}
-                                    onClick={handleUseAutoTargets}
-                                    type="button"
-                                >
-                                    Use Auto Targets
-                                </button>
-                            </div>
-                        )}
                     </section>
 
                     <section className="rounded-3xl bg-surface-container-low p-8">

@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { getDatabase } from '../../db';
 import type {
     BiologicalSex,
-    NutritionSettingsDto,
     PreferencesDto,
     PrimaryGoal,
     ProfileDto,
@@ -82,14 +81,6 @@ type PreferencesRow = {
     theme_mode: 'dark';
 };
 
-type NutritionSettingsRow = {
-    target_mode: 'auto' | 'manual';
-    manual_calories_target: number | null;
-    manual_protein_target: number | null;
-    manual_carbs_target: number | null;
-    manual_fats_target: number | null;
-};
-
 export function createId(prefix: string): string {
     return `${prefix}-${randomUUID()}`;
 }
@@ -125,12 +116,6 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
         ON CONFLICT(user_id) DO NOTHING
     `);
 
-    const insertNutritionSettings = db.prepare(`
-        INSERT INTO user_nutrition_settings (user_id, target_mode, manual_calories_target, manual_protein_target, manual_carbs_target, manual_fats_target)
-        VALUES (@userId, @targetMode, @manualCaloriesTarget, @manualProteinTarget, @manualCarbsTarget, @manualFatsTarget)
-        ON CONFLICT(user_id) DO NOTHING
-    `);
-
     const seed = db.transaction(() => {
         insertUser.run({
             id: userId,
@@ -156,15 +141,6 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
             desiredWeightKg: 85,
             gymSessionsPerWeek: 4,
             stepGoal: 10000
-        });
-
-        insertNutritionSettings.run({
-            userId,
-            targetMode: 'auto',
-            manualCaloriesTarget: null,
-            manualProteinTarget: null,
-            manualCarbsTarget: null,
-            manualFatsTarget: null
         });
     });
 
@@ -334,15 +310,5 @@ export function mapPreferencesRow(row: PreferencesRow): PreferencesDto {
         unitSystem: row.unit_system,
         foodDatabaseRegion: row.food_database_region,
         themeMode: row.theme_mode
-    };
-}
-
-export function mapNutritionSettingsRow(row: NutritionSettingsRow): NutritionSettingsDto {
-    return {
-        targetMode: row.target_mode,
-        manualCaloriesTarget: row.manual_calories_target,
-        manualProteinTarget: row.manual_protein_target,
-        manualCarbsTarget: row.manual_carbs_target,
-        manualFatsTarget: row.manual_fats_target
     };
 }

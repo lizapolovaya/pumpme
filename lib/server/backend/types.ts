@@ -5,7 +5,6 @@ export type ReadinessBand = 'low' | 'moderate' | 'high' | 'excellent';
 export type WorkoutSessionStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
 export type MacroKey = 'protein' | 'carbs' | 'fats' | 'calories';
 export type BiologicalSex = 'male' | 'female';
-export type NutritionTargetMode = 'auto' | 'manual';
 
 export type UserContext = {
     userId: string;
@@ -53,14 +52,6 @@ export type NutritionDayDto = {
     protein: NutritionMacroDto;
     carbs: NutritionMacroDto;
     fats: NutritionMacroDto;
-};
-
-export type NutritionSettingsDto = {
-    targetMode: NutritionTargetMode;
-    manualCaloriesTarget: number | null;
-    manualProteinTarget: number | null;
-    manualCarbsTarget: number | null;
-    manualFatsTarget: number | null;
 };
 
 export type WeeklyDisciplineDayDto = {
@@ -181,7 +172,6 @@ export type ProfileBootstrapResponse = {
     preferences: PreferencesDto;
     readiness: ReadinessDayDto;
     nutrition: NutritionDayDto;
-    nutritionSettings: NutritionSettingsDto;
 };
 
 export type WorkoutsBootstrapResponse = {
@@ -252,14 +242,6 @@ export type UpdateNutritionDayInput = {
     carbsTarget?: number;
     fatsCurrent?: number;
     fatsTarget?: number;
-};
-
-export type UpdateNutritionSettingsInput = {
-    targetMode?: NutritionTargetMode;
-    manualCaloriesTarget?: number | null;
-    manualProteinTarget?: number | null;
-    manualCarbsTarget?: number | null;
-    manualFatsTarget?: number | null;
 };
 
 export type UpdateReadinessDayInput = {
