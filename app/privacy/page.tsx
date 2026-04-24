@@ -14,9 +14,9 @@ export default function PrivacyPage() {
                         Privacy
                     </h1>
                     <div className="mt-6 space-y-5 text-sm leading-6 text-on-surface-variant">
-                        <p>This demo stores workout, profile, and preference changes in the local PumpMe data layer for the current browser session.</p>
-                        <p>No external identity provider is wired into this build. Logging out only clears the demo-access cookie that unlocks the app shell.</p>
-                        <p>The local database remains available on the machine unless it is reset separately by a developer or deployment workflow.</p>
+                        <p>PumpMe stores workout, nutrition, activity, and profile data in the app data layer tied to your authenticated account.</p>
+                        <p>Google sign-in is handled through Supabase Auth. If you grant fitness access, PumpMe may sync daily step totals from your Google fitness data into your account.</p>
+                        <p>Logging out clears the current browser auth session. Stored account data remains in the configured backend until it is removed separately.</p>
                     </div>
                     <Link className="mt-8 inline-flex text-sm font-bold text-primary" href="/profile">
                         Back to Profile

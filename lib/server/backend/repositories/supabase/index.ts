@@ -1,5 +1,6 @@
 import type { BackendConfig } from '../../config';
 import type { BackendRepositories } from '../contracts';
+import { SupabaseActivityRepository } from './activity-repository';
 import { createSupabaseServerClient } from './client';
 import { SupabaseAnalyticsRepository } from './analytics-repository';
 import { SupabaseCalendarRepository } from './calendar-repository';
@@ -31,6 +32,7 @@ export function createSupabaseRepositories(config: BackendConfig): BackendReposi
         preferences: new SupabasePreferencesRepository(client),
         workouts: new SupabaseWorkoutRepository(client),
         nutrition: new SupabaseNutritionRepository(client),
+        activity: new SupabaseActivityRepository(client),
         readiness: new SupabaseReadinessRepository(client),
         dashboard: new SupabaseDashboardRepository(client),
         calendar: new SupabaseCalendarRepository(client),

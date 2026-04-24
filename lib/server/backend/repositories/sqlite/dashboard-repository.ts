@@ -1,5 +1,6 @@
 import type { DashboardRepository } from '../contracts';
 import type { PlannedWorkoutSummaryDto, TodayDashboardDto, WeeklyDisciplineDayDto } from '../../types';
+import { SqliteActivityRepository } from './activity-repository';
 import { ensureScaffoldForDate, getSqliteRepositoryDatabase, toIsoDate } from './shared';
 import { SqliteNutritionRepository } from './nutrition-repository';
 import { SqliteReadinessRepository } from './readiness-repository';
@@ -8,6 +9,7 @@ const weekdayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short', ti
 
 export class SqliteDashboardRepository implements DashboardRepository {
     constructor(
+        private readonly activityRepository = new SqliteActivityRepository(),
         private readonly nutritionRepository = new SqliteNutritionRepository(),
         private readonly readinessRepository = new SqliteReadinessRepository()
     ) {}
@@ -119,7 +121,8 @@ export class SqliteDashboardRepository implements DashboardRepository {
     async getTodayDashboard(userId: string, date: string): Promise<TodayDashboardDto> {
         const normalizedDate = toIsoDate(date);
 
-        const [readiness, plannedWorkout, weeklyDiscipline, nutrition] = await Promise.all([
+        const [activity, readiness, plannedWorkout, weeklyDiscipline, nutrition] = await Promise.all([
+            this.activityRepository.getActivityDay(userId, normalizedDate),
             this.readinessRepository.getReadinessDay(userId, normalizedDate),
             this.getPlannedWorkout(userId, normalizedDate),
             this.getWeeklyDiscipline(userId, normalizedDate),
@@ -127,6 +130,7 @@ export class SqliteDashboardRepository implements DashboardRepository {
         ]);
 
         return {
+            activity,
             readiness,
             plannedWorkout,
             weeklyDiscipline,

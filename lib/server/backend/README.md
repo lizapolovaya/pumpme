@@ -14,6 +14,10 @@ PumpMe's backend is structured so route handlers and pages talk to service contr
 - `PUMPME_SUPABASE_URL=...`
 - `PUMPME_SUPABASE_ANON_KEY=...`
 - `PUMPME_SUPABASE_SERVICE_ROLE_KEY=...`
+- `NEXT_PUBLIC_SUPABASE_URL=...`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
+- `PUMPME_GOOGLE_OAUTH_CLIENT_ID=...`
+- `PUMPME_GOOGLE_OAUTH_CLIENT_SECRET=...`
 
 If `PUMPME_SQLITE_PATH` is not set, local development uses `./data/pumpme.sqlite`. On Vercel, the backend falls back to `/tmp/pumpme.sqlite` so the app can run on a writable filesystem.
 
@@ -26,3 +30,11 @@ If `PUMPME_SQLITE_PATH` is not set, local development uses `./data/pumpme.sqlite
 Note: the current Supabase adapter assumes server-side access (API routes / server components) and works best with `PUMPME_SUPABASE_SERVICE_ROLE_KEY` unless you have RLS policies in place.
 
 Client-side realtime is separate from the server adapter. If you subscribe from the browser, use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and keep the service role key server-only.
+
+For Google sign-in plus cloud step sync, the backend also expects:
+
+- a Supabase Google auth provider configured with the `fitness.activity.read` scope
+- `PUMPME_GOOGLE_OAUTH_CLIENT_ID`
+- `PUMPME_GOOGLE_OAUTH_CLIENT_SECRET`
+
+These credentials are used only on the server to exchange stored Google refresh tokens for short-lived access tokens before calling the Google fitness API.

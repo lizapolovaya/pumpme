@@ -233,5 +233,32 @@ export const SQLITE_MIGRATIONS: readonly Migration[] = [
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
         `
+    },
+    {
+        id: '0003_activity_sync_metadata',
+        sql: `
+            ALTER TABLE activity_daily_summaries ADD COLUMN source TEXT;
+            ALTER TABLE activity_daily_summaries ADD COLUMN last_synced_at TEXT;
+        `
+    },
+    {
+        id: '0004_google_oauth_connections',
+        sql: `
+            CREATE TABLE IF NOT EXISTS google_oauth_connections (
+                user_id TEXT PRIMARY KEY,
+                google_user_id TEXT,
+                email TEXT,
+                access_token TEXT,
+                refresh_token TEXT,
+                scopes TEXT NOT NULL DEFAULT '',
+                access_token_expires_at TEXT,
+                connected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_sync_at TEXT,
+                last_sync_error TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        `
     }
 ];

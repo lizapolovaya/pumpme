@@ -9,6 +9,7 @@ import type {
     UnitSystem
 } from '../../types';
 import { DEFAULT_LOCAL_USER_ID } from '../../context';
+import type { AuthenticatedUserSeed } from '../../../auth/types';
 
 const DEFAULT_AVATAR_URL =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuBXb6bQ_6pGK2QytE71viNJV7IVFABH_L7U4x8FcpFvOqHCQ9OxgKk1xBZQQZK-HGl_k1N_vfKdaaoc95JBGZXRfAO6x5Pa5XEUfuRV5jZCSAwxTZwt7h3SXMR9gpnY0sP_O5tKTUCnCqJyYBX9OVIUYHjWTTu1cfHJfQdUF6K70u1VYb720azdtT9BGxtdaIv3nUcw0kXZGwkWN0FCpwweKFzzvaC8MKFTwEI83Vt74SaRgemweAt0gDoBUwMHu2N__xU6IZLiEBnR';
@@ -97,7 +98,7 @@ export function getSqliteRepositoryDatabase(): Database.Database {
     return getDatabase();
 }
 
-export function ensureUserScaffold(db: Database.Database, userId: string): void {
+export function ensureUserScaffold(db: Database.Database, userId: string, seed: AuthenticatedUserSeed = {}): void {
     const insertUser = db.prepare(`
         INSERT INTO users (id, email, display_name, avatar_url)
         VALUES (@id, @email, @displayName, @avatarUrl)
@@ -116,12 +117,12 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
         ON CONFLICT(user_id) DO NOTHING
     `);
 
-    const seed = db.transaction(() => {
+    const applySeed = db.transaction(() => {
         insertUser.run({
             id: userId,
-            email: 'alex.rivers@email.com',
-            displayName: userId === DEFAULT_LOCAL_USER_ID ? 'Alex Rivers' : 'PumpMe User',
-            avatarUrl: DEFAULT_AVATAR_URL
+            email: seed.email ?? 'alex.rivers@email.com',
+            displayName: seed.displayName?.trim() || (userId === DEFAULT_LOCAL_USER_ID ? 'Alex Rivers' : 'PumpMe User'),
+            avatarUrl: seed.avatarUrl ?? DEFAULT_AVATAR_URL
         });
 
         insertPreferences.run({
@@ -144,7 +145,7 @@ export function ensureUserScaffold(db: Database.Database, userId: string): void 
         });
     });
 
-    seed();
+    applySeed();
 }
 
 export function ensureExerciseCatalog(db: Database.Database): void {
@@ -234,8 +235,8 @@ export function ensureDailyScaffold(db: Database.Database, userId: string, date:
     `);
 
     const insertActivity = db.prepare(`
-        INSERT INTO activity_daily_summaries (id, user_id, date, steps, active_minutes)
-        VALUES (@id, @userId, @date, @steps, @activeMinutes)
+        INSERT INTO activity_daily_summaries (id, user_id, date, steps, active_minutes, source, last_synced_at)
+        VALUES (@id, @userId, @date, @steps, @activeMinutes, @source, @lastSyncedAt)
         ON CONFLICT(user_id, date) DO NOTHING
     `);
 
@@ -274,8 +275,10 @@ export function ensureDailyScaffold(db: Database.Database, userId: string, date:
             id: createId('activity'),
             userId,
             date,
-            steps: 8500,
-            activeMinutes: 74
+            steps: 0,
+            activeMinutes: null,
+            source: null,
+            lastSyncedAt: null
         });
     });
 

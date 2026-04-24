@@ -22,6 +22,8 @@ export default function ProfilePage() {
 
     return (
         <ProfileClient
+            initialActivity={data.activity}
+            initialGoogleConnection={data.googleConnection}
             initialNutrition={data.nutrition}
             initialPreferences={data.preferences}
             initialProfile={data.profile}

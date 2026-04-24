@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DEFAULT_LOCAL_USER_ID } from '../../context';
+import type { AuthenticatedUserSeed } from '../../../auth/types';
 
 const DEFAULT_AVATAR_URL =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuBXb6bQ_6pGK2QytE71viNJV7IVFABH_L7U4x8FcpFvOqHCQ9OxgKk1xBZQQZK-HGl_k1N_vfKdaaoc95JBGZXRfAO6x5Pa5XEUfuRV5jZCSAwxTZwt7h3SXMR9gpnY0sP_O5tKTUCnCqJyYBX9OVIUYHjWTTu1cfHJfQdUF6K70u1VYb720azdtT9BGxtdaIv3nUcw0kXZGwkWN0FCpwweKFzzvaC8MKFTwEI83Vt74SaRgemweAt0gDoBUwMHu2N__xU6IZLiEBnR';
@@ -81,12 +82,16 @@ function isMissingSupabaseColumnOrTable(error: { message?: string } | null): boo
     );
 }
 
-export async function ensureUserScaffold(client: SupabaseClient, userId: string): Promise<void> {
+export async function ensureUserScaffold(
+    client: SupabaseClient,
+    userId: string,
+    seed: AuthenticatedUserSeed = {}
+): Promise<void> {
     const userRow = {
         id: userId,
-        email: 'alex.rivers@email.com',
-        display_name: userId === DEFAULT_LOCAL_USER_ID ? 'Alex Rivers' : 'PumpMe User',
-        avatar_url: DEFAULT_AVATAR_URL
+        email: seed.email ?? 'alex.rivers@email.com',
+        display_name: seed.displayName?.trim() || (userId === DEFAULT_LOCAL_USER_ID ? 'Alex Rivers' : 'PumpMe User'),
+        avatar_url: seed.avatarUrl ?? DEFAULT_AVATAR_URL
     };
 
     const userResult = await client.from('users').upsert(userRow, {
@@ -269,14 +274,35 @@ export async function ensureDailyScaffold(client: SupabaseClient, userId: string
             id: stableDailyId('activity', userId, date),
             user_id: userId,
             date,
-            steps: 8500,
-            active_minutes: 74
+            steps: 0,
+            active_minutes: null,
+            source: null,
+            last_synced_at: null
         },
         {
             onConflict: 'user_id,date',
             ignoreDuplicates: true
         }
     );
+    if (isMissingSupabaseColumnOrTable(activityResult.error)) {
+        const fallbackActivityResult = await client.from('activity_daily_summaries').upsert(
+            {
+                id: stableDailyId('activity', userId, date),
+                user_id: userId,
+                date,
+                steps: 0,
+                active_minutes: null
+            },
+            {
+                onConflict: 'user_id,date',
+                ignoreDuplicates: true
+            }
+        );
+        if (fallbackActivityResult.error) {
+            throw fallbackActivityResult.error;
+        }
+        return;
+    }
     if (activityResult.error) {
         throw activityResult.error;
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type {
+    ActivitySource,
     AddWorkoutExerciseInput,
     AddWorkoutSetInput,
     BiologicalSex,
@@ -8,6 +9,7 @@ import type {
     UnitSystem,
     UpdatePreferencesInput,
     UpdateProfileInput,
+    UpdateActivityDayInput,
     UpdateWorkoutExerciseInput,
     UpdateWorkoutSessionInput,
     UpdateWorkoutSetInput
@@ -23,6 +25,7 @@ const PRIMARY_GOALS: readonly PrimaryGoal[] = [
 
 const UNIT_SYSTEMS: readonly UnitSystem[] = ['metric', 'imperial'];
 const BIOLOGICAL_SEXES: readonly BiologicalSex[] = ['male', 'female'];
+const ACTIVITY_SOURCES: readonly ActivitySource[] = ['health_connect', 'google_fit'];
 
 export function jsonError(message: string, status = 400) {
     return NextResponse.json({ error: message }, { status });
@@ -150,6 +153,42 @@ export function parsePreferencesUpdate(body: Record<string, unknown>): UpdatePre
     }
 
     return input;
+}
+
+export function parseActivitySync(body: Record<string, unknown>): { date: string; input: UpdateActivityDayInput } {
+    if (!Number.isInteger(body.steps) || (body.steps as number) < 0) {
+        throw new Error('steps must be a non-negative integer');
+    }
+
+    if (typeof body.source !== 'string' || !ACTIVITY_SOURCES.includes(body.source as ActivitySource)) {
+        throw new Error('source is invalid');
+    }
+
+    const input: UpdateActivityDayInput = {
+        steps: body.steps as number,
+        source: body.source as ActivitySource
+    };
+
+    if (body.activeMinutes !== undefined) {
+        if (body.activeMinutes !== null && (!Number.isInteger(body.activeMinutes) || (body.activeMinutes as number) < 0)) {
+            throw new Error('activeMinutes must be a non-negative integer or null');
+        }
+
+        input.activeMinutes = body.activeMinutes as number | null;
+    }
+
+    if (body.syncedAt !== undefined) {
+        if (typeof body.syncedAt !== 'string' || Number.isNaN(Date.parse(body.syncedAt))) {
+            throw new Error('syncedAt must be a valid ISO datetime');
+        }
+
+        input.syncedAt = new Date(body.syncedAt).toISOString();
+    }
+
+    return {
+        date: parseWorkoutDate(typeof body.date === 'string' ? body.date : undefined),
+        input
+    };
 }
 
 export function parseWorkoutDate(rawValue: string | null | undefined): string {

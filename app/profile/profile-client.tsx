@@ -16,13 +16,15 @@ import {
     Sparkles,
     User
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { type ReactElement, useEffect, useState, useTransition } from 'react';
+import { startGoogleAuthFlow } from '../../lib/client/auth';
 import { queryKeys } from '../../lib/client/app-query';
 import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 import { hasAutoNutritionInputs } from '../../lib/server/backend/nutrition-targets';
 import type {
+    ActivityDayDto,
     BiologicalSex,
+    GoogleConnectionDto,
     NutritionDayDto,
     PreferencesDto,
     PrimaryGoal,
@@ -32,6 +34,8 @@ import type {
 } from '../../lib/server/backend/types';
 
 type ProfileClientProps = {
+    initialActivity: ActivityDayDto;
+    initialGoogleConnection: GoogleConnectionDto;
     initialNutrition: NutritionDayDto;
     initialPreferences: PreferencesDto;
     initialProfile: ProfileDto;
@@ -53,8 +57,6 @@ const infoLinks = [
     { href: '/help', label: 'Help & FAQ', icon: CircleHelp },
     { href: '/privacy', label: 'Privacy Policy', icon: Shield }
 ] as const;
-
-const COOKIE_NAME = 'pumpme_demo_session';
 
 function formatGoal(goal: string): string {
     return goal
@@ -115,16 +117,19 @@ function MetricField({ icon, label, onChange, value }: MetricFieldProps) {
 }
 
 export function ProfileClient({
+    initialActivity,
+    initialGoogleConnection,
     initialNutrition,
     initialPreferences,
     initialProfile,
     readiness,
     todayDate
 }: ProfileClientProps) {
-    const router = useRouter();
     const queryClient = useQueryClient();
     const [profile, setProfile] = useState(initialProfile);
     const [preferences, setPreferences] = useState(initialPreferences);
+    const [activity, setActivity] = useState(initialActivity);
+    const [googleConnection, setGoogleConnection] = useState(initialGoogleConnection);
     const [nutrition, setNutrition] = useState(initialNutrition);
     const [readinessState, setReadinessState] = useState(readiness);
     const [displayName, setDisplayName] = useState(initialProfile.displayName);
@@ -139,10 +144,13 @@ export function ProfileClient({
     const [error, setError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
-    const nutritionCompletion = nutrition.calories.target
-        ? Math.min(100, Math.round((nutrition.calories.current / nutrition.calories.target) * 100))
+    const activityCompletion = profile.stepGoal
+        ? Math.min(100, Math.round((activity.steps / profile.stepGoal) * 100))
         : 0;
     const isAutoModeIncomplete = !hasAutoNutritionInputs(profile);
+    const hasActivitySyncData =
+        Boolean(activity.source) || Boolean(activity.lastSyncedAt) || activity.activeMinutes !== null || activity.steps > 0;
+    const isActivityConnected = googleConnection.connected || hasActivitySyncData;
 
     async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
         const response = await fetch(input, {
@@ -159,6 +167,8 @@ export function ProfileClient({
     }
 
     function syncBootstrapState(bootstrap: ProfileBootstrapResponse) {
+        setActivity(bootstrap.activity);
+        setGoogleConnection(bootstrap.googleConnection);
         setProfile(bootstrap.profile);
         setPreferences(bootstrap.preferences);
         setNutrition(bootstrap.nutrition);
@@ -182,12 +192,14 @@ export function ProfileClient({
 
     useEffect(() => {
         syncBootstrapState({
+            activity: initialActivity,
+            googleConnection: initialGoogleConnection,
             nutrition: initialNutrition,
             preferences: initialPreferences,
             profile: initialProfile,
             readiness
         });
-    }, [initialNutrition, initialPreferences, initialProfile, readiness]);
+    }, [initialActivity, initialGoogleConnection, initialNutrition, initialPreferences, initialProfile, readiness]);
 
     useEffect(() => {
         const client = getSupabaseBrowserClient();
@@ -238,6 +250,12 @@ export function ProfileClient({
                 event: '*',
                 schema: 'public',
                 table: 'user_preferences',
+                filter: `user_id=eq.${profile.id}`
+            }, syncProfileState)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'activity_daily_summaries',
                 filter: `user_id=eq.${profile.id}`
             }, syncProfileState)
             .on('postgres_changes', {
@@ -414,8 +432,34 @@ export function ProfileClient({
     }
 
     function handleLogout() {
-        document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
-        router.push('/login');
+        window.location.href = '/auth/signout';
+    }
+
+    function handleActivitySyncAction() {
+        setFeedback(null);
+        setError(null);
+
+        if (!googleConnection.connected || !googleConnection.fitnessScopeGranted) {
+            startTransition(() => {
+                void startGoogleAuthFlow('/profile').catch((nextError) => {
+                    setError(nextError instanceof Error ? nextError.message : 'Unable to connect Google');
+                });
+            });
+            return;
+        }
+
+        startTransition(async () => {
+            try {
+                await requestJson<ActivityDayDto>(`/api/activity/google/sync?date=${todayDate}`, {
+                    method: 'POST'
+                });
+                await refreshBootstrap();
+                void queryClient.invalidateQueries({ queryKey: queryKeys.today(todayDate) });
+                setFeedback('Google steps synced.');
+            } catch (nextError) {
+                setError(nextError instanceof Error ? nextError.message : 'Unable to sync Google steps');
+            }
+        });
     }
 
     return (
@@ -637,11 +681,11 @@ export function ProfileClient({
                                         <Shield className="h-4 w-4 text-on-surface-variant" strokeWidth={2.1} />
                                     </div>
                                     <div>
-                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Password</p>
-                                        <p className="font-body font-medium">Managed in demo mode</p>
+                                        <p className="font-label text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Sign-in Method</p>
+                                        <p className="font-body font-medium">Google OAuth via Supabase</p>
                                     </div>
                                 </div>
-                                <span className="font-headline text-xs font-bold uppercase text-primary">Local Demo</span>
+                                <span className="font-headline text-xs font-bold uppercase text-primary">Secured</span>
                             </div>
                         </div>
                         <button
@@ -660,14 +704,28 @@ export function ProfileClient({
                         <p className="mb-4 font-label text-[10px] uppercase tracking-[0.3em] text-on-surface-variant">Activity Level</p>
                         <div className="mb-2 flex items-baseline gap-2">
                             <span className="font-headline text-5xl font-black italic tracking-[-0.08em] text-on-surface">
-                                {profile.stepGoal ? Math.round((profile.stepGoal * nutritionCompletion) / 100).toLocaleString('en-US') : '0'}
+                                {activity.steps.toLocaleString('en-US')}
                             </span>
                             <span className="font-label text-sm uppercase text-secondary">Steps</span>
                         </div>
                         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-highest">
-                            <div className="h-full rounded-full bg-linear-to-r from-secondary to-secondary-dim" style={{ width: `${nutritionCompletion}%` }} />
+                            <div className="h-full rounded-full bg-linear-to-r from-secondary to-secondary-dim" style={{ width: `${activityCompletion}%` }} />
                         </div>
                         <p className="mt-4 text-xs text-on-surface-variant">Daily Goal: {profile.stepGoal?.toLocaleString('en-US') ?? '0'} steps</p>
+                        <p className="mt-2 text-xs text-on-surface-variant">
+                            {googleConnection.connected
+                                ? `${activity.source === 'google_fit' ? 'Source: Google Fit cloud sync' : 'Google account connected'}${
+                                      googleConnection.lastSyncAt ? ` • Last synced ${new Date(googleConnection.lastSyncAt).toLocaleString()}` : ''
+                                  }${googleConnection.lastSyncError ? ` • ${googleConnection.lastSyncError}` : ''}`
+                                : 'Not connected. Sign in with Google fitness access to sync your daily steps.'}
+                        </p>
+                        <button
+                            className="mt-5 w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-4 py-3 font-headline text-xs font-black uppercase tracking-[0.08em] text-on-surface transition hover:bg-surface-bright"
+                            onClick={handleActivitySyncAction}
+                            type="button"
+                        >
+                            {googleConnection.connected ? 'Refresh Google Steps' : 'Connect Google Steps'}
+                        </button>
                     </section>
 
                     <section className="space-y-6 rounded-3xl bg-surface-container-low p-8">

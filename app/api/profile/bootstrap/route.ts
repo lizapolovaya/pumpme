@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createBackendServices, resolveCurrentUserContext } from '../../../../lib/server/backend';
 import { jsonError, parseWorkoutDate } from '../../../../lib/server/backend/http';
 import type { ProfileBootstrapResponse } from '../../../../lib/server/backend/types';
+import { getGoogleConnectionSummary } from '../../../../lib/server/auth/google-fit';
 
 export async function GET(request: Request) {
     try {
@@ -9,14 +10,18 @@ export async function GET(request: Request) {
         const date = parseWorkoutDate(searchParams.get('date'));
         const { userId } = await resolveCurrentUserContext();
         const services = createBackendServices(userId);
-        const [nutrition, preferences, profile, readiness] = await Promise.all([
+        const [activity, nutrition, preferences, profile, readiness, googleConnection] = await Promise.all([
+            services.activity.getDay(date),
             services.nutrition.getDay(date),
             services.preferences.getPreferences(),
             services.profile.getProfile(),
-            services.readiness.getDay(date)
+            services.readiness.getDay(date),
+            getGoogleConnectionSummary(userId)
         ]);
 
         const bootstrap: ProfileBootstrapResponse = {
+            activity,
+            googleConnection,
             nutrition,
             preferences,
             profile,

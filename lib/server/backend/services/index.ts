@@ -1,6 +1,7 @@
 import type { BackendServices } from './contracts';
 import { createBackendRepositories } from '../repositories';
 import { getBackendConfig } from '../config';
+import { DefaultActivityService } from './activity-service';
 import { DefaultAnalyticsService } from './analytics-service';
 import { DefaultCalendarService } from './calendar-service';
 import { DefaultDashboardService } from './dashboard-service';
@@ -36,6 +37,7 @@ export function createBackendServices(userId: string): BackendServices {
         workouts: new DefaultWorkoutService(userId, repositories.workouts),
         calendar: new DefaultCalendarService(userId, repositories.calendar),
         nutrition: new DefaultNutritionService(userId, repositories.nutrition),
+        activity: new DefaultActivityService(userId, repositories.activity),
         readiness: new DefaultReadinessService(userId, repositories.readiness),
         analytics: new DefaultAnalyticsService(userId, repositories.analytics)
     };

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DashboardRepository } from '../contracts';
 import type { PlannedWorkoutSummaryDto, TodayDashboardDto, WeeklyDisciplineDayDto } from '../../types';
+import { SupabaseActivityRepository } from './activity-repository';
 import { ensureScaffoldForDate, toIsoDate } from './shared';
 import { requireSupabaseOk } from './client';
 import { SupabaseNutritionRepository } from './nutrition-repository';
@@ -25,10 +26,12 @@ type TemplateRow = {
 };
 
 export class SupabaseDashboardRepository implements DashboardRepository {
+    private readonly activityRepository: SupabaseActivityRepository;
     private readonly nutritionRepository: SupabaseNutritionRepository;
     private readonly readinessRepository: SupabaseReadinessRepository;
 
     constructor(private readonly client: SupabaseClient) {
+        this.activityRepository = new SupabaseActivityRepository(client);
         this.nutritionRepository = new SupabaseNutritionRepository(client);
         this.readinessRepository = new SupabaseReadinessRepository(client);
     }
@@ -147,7 +150,8 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     async getTodayDashboard(userId: string, date: string): Promise<TodayDashboardDto> {
         const normalizedDate = toIsoDate(date);
 
-        const [readiness, plannedWorkout, weeklyDiscipline, nutrition] = await Promise.all([
+        const [activity, readiness, plannedWorkout, weeklyDiscipline, nutrition] = await Promise.all([
+            this.activityRepository.getActivityDay(userId, normalizedDate),
             this.readinessRepository.getReadinessDay(userId, normalizedDate),
             this.getPlannedWorkout(userId, normalizedDate),
             this.getWeeklyDiscipline(userId, normalizedDate),
@@ -155,6 +159,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         ]);
 
         return {
+            activity,
             readiness,
             plannedWorkout,
             weeklyDiscipline,

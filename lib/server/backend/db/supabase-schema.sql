@@ -153,10 +153,80 @@ create table if not exists activity_daily_summaries (
     date text not null,
     steps integer not null default 0,
     active_minutes integer,
+    source text,
+    last_synced_at timestamptz,
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now()),
     unique (user_id, date)
 );
+
+alter table public.activity_daily_summaries add column if not exists source text;
+alter table public.activity_daily_summaries add column if not exists last_synced_at timestamptz;
+
+create table if not exists google_oauth_connections (
+    user_id text primary key references users(id) on delete cascade,
+    google_user_id text,
+    email text,
+    access_token text,
+    refresh_token text,
+    scopes text not null default '',
+    access_token_expires_at timestamptz,
+    connected_at timestamptz not null default timezone('utc', now()),
+    last_sync_at timestamptz,
+    last_sync_error text,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.users enable row level security;
+alter table public.user_preferences enable row level security;
+alter table public.user_metrics enable row level security;
+alter table public.user_nutrition_settings enable row level security;
+alter table public.workout_templates enable row level security;
+alter table public.template_exercises enable row level security;
+alter table public.workout_sessions enable row level security;
+alter table public.workout_session_exercises enable row level security;
+alter table public.workout_sets enable row level security;
+alter table public.daily_readiness enable row level security;
+alter table public.daily_nutrition_targets enable row level security;
+alter table public.daily_nutrition_totals enable row level security;
+alter table public.activity_daily_summaries enable row level security;
+
+create policy if not exists "users_select_own" on public.users for select using (auth.uid()::text = id);
+create policy if not exists "user_preferences_select_own" on public.user_preferences for select using (auth.uid()::text = user_id);
+create policy if not exists "user_metrics_select_own" on public.user_metrics for select using (auth.uid()::text = user_id);
+create policy if not exists "user_nutrition_settings_select_own" on public.user_nutrition_settings for select using (auth.uid()::text = user_id);
+create policy if not exists "workout_templates_select_own" on public.workout_templates for select using (auth.uid()::text = user_id);
+create policy if not exists "template_exercises_select_own" on public.template_exercises for select using (
+    exists (
+        select 1
+        from public.workout_templates
+        where workout_templates.id = template_exercises.template_id
+          and workout_templates.user_id = auth.uid()::text
+    )
+);
+create policy if not exists "workout_sessions_select_own" on public.workout_sessions for select using (auth.uid()::text = user_id);
+create policy if not exists "workout_session_exercises_select_own" on public.workout_session_exercises for select using (
+    exists (
+        select 1
+        from public.workout_sessions
+        where workout_sessions.id = workout_session_exercises.session_id
+          and workout_sessions.user_id = auth.uid()::text
+    )
+);
+create policy if not exists "workout_sets_select_own" on public.workout_sets for select using (
+    exists (
+        select 1
+        from public.workout_session_exercises
+        join public.workout_sessions on workout_sessions.id = workout_session_exercises.session_id
+        where workout_session_exercises.id = workout_sets.session_exercise_id
+          and workout_sessions.user_id = auth.uid()::text
+    )
+);
+create policy if not exists "daily_readiness_select_own" on public.daily_readiness for select using (auth.uid()::text = user_id);
+create policy if not exists "daily_nutrition_targets_select_own" on public.daily_nutrition_targets for select using (auth.uid()::text = user_id);
+create policy if not exists "daily_nutrition_totals_select_own" on public.daily_nutrition_totals for select using (auth.uid()::text = user_id);
+create policy if not exists "activity_daily_summaries_select_own" on public.activity_daily_summaries for select using (auth.uid()::text = user_id);
 
 create table if not exists personal_records (
     id text primary key,

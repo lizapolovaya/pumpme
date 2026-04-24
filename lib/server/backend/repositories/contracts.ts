@@ -1,4 +1,5 @@
 import type {
+    ActivityDayDto,
     AddWorkoutExerciseInput,
     AddWorkoutSetInput,
     CalendarDayDetailDto,
@@ -11,6 +12,7 @@ import type {
     ReadinessDayDto,
     StartWorkoutSessionInput,
     TodayDashboardDto,
+    UpdateActivityDayInput,
     UpdateNutritionDayInput,
     UpdatePreferencesInput,
     UpdateProfileInput,
@@ -64,6 +66,11 @@ export interface NutritionRepository {
     updateNutritionDay(userId: string, date: string, input: UpdateNutritionDayInput): Promise<NutritionDayDto>;
 }
 
+export interface ActivityRepository {
+    getActivityDay(userId: string, date: string): Promise<ActivityDayDto>;
+    syncActivityDay(userId: string, date: string, input: UpdateActivityDayInput): Promise<ActivityDayDto>;
+}
+
 export interface ReadinessRepository {
     getReadinessDay(userId: string, date: string): Promise<ReadinessDayDto>;
     updateReadinessDay(userId: string, date: string, input: UpdateReadinessDayInput): Promise<ReadinessDayDto>;
@@ -89,6 +96,7 @@ export interface BackendRepositories {
     preferences: PreferencesRepository;
     workouts: WorkoutRepository;
     nutrition: NutritionRepository;
+    activity: ActivityRepository;
     readiness: ReadinessRepository;
     dashboard: DashboardRepository;
     calendar: CalendarRepository;

@@ -5,6 +5,7 @@ export type ReadinessBand = 'low' | 'moderate' | 'high' | 'excellent';
 export type WorkoutSessionStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
 export type MacroKey = 'protein' | 'carbs' | 'fats' | 'calories';
 export type BiologicalSex = 'male' | 'female';
+export type ActivitySource = 'health_connect' | 'google_fit';
 
 export type UserContext = {
     userId: string;
@@ -37,6 +38,14 @@ export type ReadinessDayDto = {
     band: ReadinessBand;
     headline: string;
     summary: string;
+};
+
+export type ActivityDayDto = {
+    date: string;
+    steps: number;
+    activeMinutes: number | null;
+    lastSyncedAt: string | null;
+    source: ActivitySource | null;
 };
 
 export type NutritionMacroDto = {
@@ -76,6 +85,7 @@ export type TodayDashboardDto = {
     plannedWorkout: PlannedWorkoutSummaryDto;
     weeklyDiscipline: WeeklyDisciplineDayDto[];
     nutrition: NutritionDayDto;
+    activity: ActivityDayDto;
 };
 
 export type WorkoutTemplateExerciseDto = {
@@ -172,6 +182,17 @@ export type ProfileBootstrapResponse = {
     preferences: PreferencesDto;
     readiness: ReadinessDayDto;
     nutrition: NutritionDayDto;
+    activity: ActivityDayDto;
+    googleConnection: GoogleConnectionDto;
+};
+
+export type GoogleConnectionDto = {
+    available: boolean;
+    connected: boolean;
+    email: string | null;
+    fitnessScopeGranted: boolean;
+    lastSyncAt: string | null;
+    lastSyncError: string | null;
 };
 
 export type WorkoutsBootstrapResponse = {
@@ -249,4 +270,11 @@ export type UpdateReadinessDayInput = {
     band?: ReadinessBand;
     headline?: string;
     summary?: string;
+};
+
+export type UpdateActivityDayInput = {
+    steps: number;
+    activeMinutes?: number | null;
+    source: ActivitySource;
+    syncedAt?: string;
 };
