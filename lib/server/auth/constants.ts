@@ -1,2 +1,2 @@
-export const GOOGLE_FIT_ACTIVITY_SCOPE = 'https://www.googleapis.com/auth/fitness.activity.read';
-
+export const GOOGLE_HEALTH_ACTIVITY_SCOPE =
+    'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly';

@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '../backend/repositories/supabase/cli
 import { getBackendConfig } from '../backend/config';
 import type { GoogleConnectionRecord } from './types';
 import { getGoogleOAuthClientCredentials } from './config';
-import { GOOGLE_FIT_ACTIVITY_SCOPE } from './constants';
+import { GOOGLE_HEALTH_ACTIVITY_SCOPE } from './constants';
 
 type PersistGoogleConnectionInput = {
     accessToken?: string | null;
@@ -203,6 +203,6 @@ export async function refreshGoogleAccessToken(connection: GoogleConnectionRecor
     };
 }
 
-export function hasGoogleFitnessScope(scopes: string[]): boolean {
-    return scopes.includes(GOOGLE_FIT_ACTIVITY_SCOPE);
+export function hasGoogleHealthActivityScope(scopes: string[]): boolean {
+    return scopes.includes(GOOGLE_HEALTH_ACTIVITY_SCOPE);
 }

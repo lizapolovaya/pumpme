@@ -5,7 +5,7 @@ export type ReadinessBand = 'low' | 'moderate' | 'high' | 'excellent';
 export type WorkoutSessionStatus = 'scheduled' | 'active' | 'completed' | 'cancelled';
 export type MacroKey = 'protein' | 'carbs' | 'fats' | 'calories';
 export type BiologicalSex = 'male' | 'female';
-export type ActivitySource = 'health_connect' | 'google_fit';
+export type ActivitySource = 'health_connect' | 'google_health';
 
 export type UserContext = {
     userId: string;

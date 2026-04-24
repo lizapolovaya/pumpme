@@ -1,7 +1,7 @@
 'use client';
 
 import { getSupabaseBrowserClient } from './supabase-browser';
-import { GOOGLE_FIT_ACTIVITY_SCOPE } from '../server/auth/constants';
+import { GOOGLE_HEALTH_ACTIVITY_SCOPE } from '../server/auth/constants';
 
 export async function startGoogleAuthFlow(nextPath = '/'): Promise<void> {
     const client = getSupabaseBrowserClient();
@@ -17,7 +17,7 @@ export async function startGoogleAuthFlow(nextPath = '/'): Promise<void> {
         provider: 'google',
         options: {
             redirectTo: redirectUrl.toString(),
-            scopes: `openid email profile ${GOOGLE_FIT_ACTIVITY_SCOPE}`,
+            scopes: `openid email profile ${GOOGLE_HEALTH_ACTIVITY_SCOPE}`,
             queryParams: {
                 access_type: 'offline',
                 include_granted_scopes: 'true',

@@ -33,8 +33,8 @@ Client-side realtime is separate from the server adapter. If you subscribe from 
 
 For Google sign-in plus cloud step sync, the backend also expects:
 
-- a Supabase Google auth provider configured with the `fitness.activity.read` scope
+- a Supabase Google auth provider configured with the `googlehealth.activity_and_fitness.readonly` scope
 - `PUMPME_GOOGLE_OAUTH_CLIENT_ID`
 - `PUMPME_GOOGLE_OAUTH_CLIENT_SECRET`
 
-These credentials are used only on the server to exchange stored Google refresh tokens for short-lived access tokens before calling the Google fitness API.
+These credentials are used only on the server to exchange stored Google refresh tokens for short-lived access tokens before calling the Google Health API.

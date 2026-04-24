@@ -455,9 +455,9 @@ export function ProfileClient({
                 });
                 await refreshBootstrap();
                 void queryClient.invalidateQueries({ queryKey: queryKeys.today(todayDate) });
-                setFeedback('Google steps synced.');
+                setFeedback('Google Health steps synced.');
             } catch (nextError) {
-                setError(nextError instanceof Error ? nextError.message : 'Unable to sync Google steps');
+                setError(nextError instanceof Error ? nextError.message : 'Unable to sync Google Health steps');
             }
         });
     }
@@ -714,7 +714,7 @@ export function ProfileClient({
                         <p className="mt-4 text-xs text-on-surface-variant">Daily Goal: {profile.stepGoal?.toLocaleString('en-US') ?? '0'} steps</p>
                         <p className="mt-2 text-xs text-on-surface-variant">
                             {googleConnection.connected
-                                ? `${activity.source === 'google_fit' ? 'Source: Google Fit cloud sync' : 'Google account connected'}${
+                                ? `${activity.source === 'google_health' ? 'Source: Google Health API sync' : 'Google account connected'}${
                                       googleConnection.lastSyncAt ? ` • Last synced ${new Date(googleConnection.lastSyncAt).toLocaleString()}` : ''
                                   }${googleConnection.lastSyncError ? ` • ${googleConnection.lastSyncError}` : ''}`
                                 : 'Not connected. Sign in with Google fitness access to sync your daily steps.'}
@@ -724,7 +724,7 @@ export function ProfileClient({
                             onClick={handleActivitySyncAction}
                             type="button"
                         >
-                            {googleConnection.connected ? 'Refresh Google Steps' : 'Connect Google Steps'}
+                            {googleConnection.connected ? 'Refresh Google Health' : 'Connect Google Health'}
                         </button>
                     </section>
 

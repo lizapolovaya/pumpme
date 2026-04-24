@@ -39,8 +39,8 @@ export function LoginClient({ nextPath }: LoginClientProps) {
                 </div>
 
                 <p className="mb-8 text-sm leading-6 text-on-surface-variant">
-                    Sign in with Google to unlock your PumpMe account and grant activity access so the backend can sync your
-                    daily steps from Google fitness data.
+                    Sign in with Google to unlock your PumpMe account and grant health access so the backend can sync your
+                    daily steps from the Google Health API.
                 </p>
 
                 <div className="mb-8 rounded-2xl border border-white/8 bg-surface-container-high/80 p-4 text-sm text-on-surface-variant">
@@ -69,4 +69,3 @@ export function LoginClient({ nextPath }: LoginClientProps) {
         </main>
     );
 }
-

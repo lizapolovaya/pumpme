@@ -36,7 +36,7 @@ The backend storage boundary lives under [lib/server/backend](/home/liza/pumpme/
    - `PUMPME_SUPABASE_SERVICE_ROLE_KEY=...` (recommended for development unless you have RLS policies configured)
 4. Start the app with `npm run dev`.
 
-### Google Auth + Fitness Sync
+### Google Auth + Health Sync
 
 To enable Google login and backend step sync:
 
@@ -45,7 +45,7 @@ To enable Google login and backend step sync:
    - `openid`
    - `email`
    - `profile`
-   - `https://www.googleapis.com/auth/fitness.activity.read`
+   - `https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly`
 3. Set both the server and browser Supabase env vars:
    - `PUMPME_SUPABASE_URL`
    - `PUMPME_SUPABASE_ANON_KEY`

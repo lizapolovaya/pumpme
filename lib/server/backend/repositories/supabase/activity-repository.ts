@@ -21,13 +21,19 @@ function isMissingSchemaError(error: { message?: string } | null): boolean {
 
 function mapActivityRow(date: string, row: ActivityRow): ActivityDayDto {
     const isUnsyncedLegacyRow = !row.source && !row.last_synced_at && row.steps === 8500 && row.active_minutes === 74;
+    const normalizedSource =
+        row.source === 'google_fit' || row.source === 'google_health'
+            ? 'google_health'
+            : row.source === 'health_connect'
+              ? 'health_connect'
+              : null;
 
     return {
         date,
         steps: isUnsyncedLegacyRow ? 0 : row.steps,
         activeMinutes: isUnsyncedLegacyRow ? null : row.active_minutes,
         lastSyncedAt: row.last_synced_at ?? null,
-        source: row.source === 'health_connect' || row.source === 'google_fit' ? row.source : null
+        source: normalizedSource
     };
 }
 

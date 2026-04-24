@@ -16,7 +16,7 @@ export async function POST(request: Request) {
             return jsonError(error.message, 401);
         }
 
-        const message = error instanceof Error ? error.message : 'Unable to sync Google activity';
+        const message = error instanceof Error ? error.message : 'Unable to sync Google Health activity';
         const status = message.includes('connected') || message.includes('scope') ? 400 : 500;
         return jsonError(message, status);
     }

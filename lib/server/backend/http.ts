@@ -25,7 +25,7 @@ const PRIMARY_GOALS: readonly PrimaryGoal[] = [
 
 const UNIT_SYSTEMS: readonly UnitSystem[] = ['metric', 'imperial'];
 const BIOLOGICAL_SEXES: readonly BiologicalSex[] = ['male', 'female'];
-const ACTIVITY_SOURCES: readonly ActivitySource[] = ['health_connect', 'google_fit'];
+const ACTIVITY_SOURCES: readonly ActivitySource[] = ['health_connect', 'google_health'];
 
 export function jsonError(message: string, status = 400) {
     return NextResponse.json({ error: message }, { status });

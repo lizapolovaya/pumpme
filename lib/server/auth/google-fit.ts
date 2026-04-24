@@ -1,64 +1,44 @@
 import { createBackendServices } from '../backend/services';
 import type { ActivityDayDto, GoogleConnectionDto } from '../backend/types';
-import { GOOGLE_FIT_ACTIVITY_SCOPE } from './constants';
+import { GOOGLE_HEALTH_ACTIVITY_SCOPE } from './constants';
 import {
     getGoogleConnection,
-    hasGoogleFitnessScope,
+    hasGoogleHealthActivityScope,
     refreshGoogleAccessToken,
     isGoogleConnectionStoreAvailable,
     updateGoogleSyncResult
 } from './google-connection';
 
 function getDayRange(date: string) {
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
-
     return {
-        endTimeMillis: end.getTime(),
-        startTimeMillis: start.getTime()
+        endTime: `${date}T23:59:59Z`,
+        startTime: `${date}T00:00:00Z`
     };
 }
 
-function readStepCountFromAggregate(payload: Record<string, unknown>): number {
-    const buckets = Array.isArray(payload.bucket) ? payload.bucket : [];
+function readStepCountFromDailyRollup(payload: Record<string, unknown>): number {
+    const points = Array.isArray(payload.rollupDataPoints) ? payload.rollupDataPoints : [];
+    let total = 0;
 
-    for (const bucket of buckets) {
-        if (!bucket || typeof bucket !== 'object') {
+    for (const point of points) {
+        if (!point || typeof point !== 'object') {
             continue;
         }
 
-        const datasets = Array.isArray((bucket as { dataset?: unknown[] }).dataset) ? (bucket as { dataset: unknown[] }).dataset : [];
+        const steps = (point as { steps?: { countSum?: unknown } }).steps;
+        const countSum = steps?.countSum;
 
-        for (const dataset of datasets) {
-            if (!dataset || typeof dataset !== 'object') {
-                continue;
-            }
+        if (typeof countSum === 'string') {
+            total += Number.parseInt(countSum, 10) || 0;
+            continue;
+        }
 
-            const points = Array.isArray((dataset as { point?: unknown[] }).point) ? (dataset as { point: unknown[] }).point : [];
-
-            for (const point of points) {
-                if (!point || typeof point !== 'object') {
-                    continue;
-                }
-
-                const values = Array.isArray((point as { value?: unknown[] }).value) ? (point as { value: unknown[] }).value : [];
-
-                for (const value of values) {
-                    if (!value || typeof value !== 'object') {
-                        continue;
-                    }
-
-                    const intVal = (value as { intVal?: unknown }).intVal;
-
-                    if (typeof intVal === 'number' && Number.isFinite(intVal)) {
-                        return intVal;
-                    }
-                }
-            }
+        if (typeof countSum === 'number' && Number.isFinite(countSum)) {
+            total += countSum;
         }
     }
 
-    return 0;
+    return total;
 }
 
 export async function getGoogleConnectionSummary(userId: string): Promise<GoogleConnectionDto> {
@@ -79,7 +59,7 @@ export async function getGoogleConnectionSummary(userId: string): Promise<Google
         available: true,
         connected: Boolean(connection?.refreshToken),
         email: connection?.email ?? null,
-        fitnessScopeGranted: connection ? hasGoogleFitnessScope(connection.scopes) : false,
+        fitnessScopeGranted: connection ? hasGoogleHealthActivityScope(connection.scopes) : false,
         lastSyncAt: connection?.lastSyncAt ?? null,
         lastSyncError: connection?.lastSyncError ?? null
     };
@@ -96,48 +76,45 @@ export async function syncGoogleStepsForDate(userId: string, date: string): Prom
         throw new Error('Google account is not connected.');
     }
 
-    if (!hasGoogleFitnessScope(connection.scopes)) {
-        throw new Error(`Google account is connected without ${GOOGLE_FIT_ACTIVITY_SCOPE}. Reconnect Google and grant activity access.`);
+    if (!hasGoogleHealthActivityScope(connection.scopes)) {
+        throw new Error(
+            `Google account is connected without ${GOOGLE_HEALTH_ACTIVITY_SCOPE}. Reconnect Google and grant activity access.`
+        );
     }
 
     const { accessToken } = await refreshGoogleAccessToken(connection);
-    const { endTimeMillis, startTimeMillis } = getDayRange(date);
-    const response = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+    const { endTime, startTime } = getDayRange(date);
+    const response = await fetch('https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp', {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
             'Content-Type': 'application/json'
         },
         cache: 'no-store',
         body: JSON.stringify({
-            aggregateBy: [
-                {
-                    dataTypeName: 'com.google.step_count.delta'
-                }
-            ],
-            bucketByTime: {
-                durationMillis: endTimeMillis - startTimeMillis + 1
-            },
-            endTimeMillis,
-            startTimeMillis
+            range: {
+                startTime,
+                endTime
+            }
         })
     });
 
     const payload = (await response.json()) as Record<string, unknown> & { error?: { message?: string } };
 
     if (!response.ok) {
-        const message = payload.error?.message ?? 'Unable to read Google Fit steps';
+        const message = payload.error?.message ?? 'Unable to read Google Health API steps';
         await updateGoogleSyncResult(userId, {
             lastSyncError: message
         });
         throw new Error(message);
     }
 
-    const steps = readStepCountFromAggregate(payload);
+    const steps = readStepCountFromDailyRollup(payload);
     const syncedAt = new Date().toISOString();
     const services = createBackendServices(userId);
     const activity = await services.activity.syncDay(date, {
-        source: 'google_fit',
+        source: 'google_health',
         steps,
         syncedAt
     });
