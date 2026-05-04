@@ -204,5 +204,35 @@ test('analytics repository returns average RPE as a first-class progress metric'
 
     assert.equal(summary.averageRpe, 8);
     assert.equal(summary.logs.some((log) => log.title.includes('RPE')), false);
-    assert.equal(summary.logs.some((log) => log.title === 'Recovery Score'), true);
+    assert.equal(summary.logs.some((log) => log.title === 'Recovery Score'), false);
+});
+
+test('analytics repository returns recovery score as a first-class progress metric', async () => {
+    const repositories = createSqliteRepositories();
+
+    await repositories.readiness.updateReadinessDay('local-user', '2026-04-11', {
+        score: 80
+    });
+    await repositories.readiness.updateReadinessDay('local-user', '2026-04-12', {
+        score: 90
+    });
+
+    const firstSession = await repositories.workouts.startSession('local-user', {
+        date: '2026-04-11',
+        title: 'Recovery Test A',
+        focus: 'Upper body'
+    });
+    const secondSession = await repositories.workouts.startSession('local-user', {
+        date: '2026-04-12',
+        title: 'Recovery Test B',
+        focus: 'Lower body'
+    });
+
+    await repositories.workouts.finishSession('local-user', firstSession.id);
+    await repositories.workouts.finishSession('local-user', secondSession.id);
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', '30d');
+
+    assert.equal(summary.recoveryScore, 85);
+    assert.equal(summary.logs.some((log) => log.title === 'Recovery Score'), false);
 });

@@ -96,18 +96,12 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         const { oneRmTrend, averageRpe } = await this.computeOneRmAndRpeTrend(userId, sessions, rangeStart);
         const readinessScore = await this.computeReadinessScore(userId, sessions);
 
-        const logs: ProgressLogDto[] = [
-            {
-                title: 'Recovery Score',
-                subtitle: 'Based on daily readiness entries',
-                value: `${readinessScore}%`,
-                status: readinessScore >= 85 ? 'High Readiness' : 'Monitor Recovery'
-            }
-        ];
+        const logs: ProgressLogDto[] = [];
 
         return {
             averageRpe,
             range,
+            recoveryScore: readinessScore,
             volumeTrend,
             oneRmTrend,
             logs

@@ -27,11 +27,12 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
 
         const volumeTrend = this.getVolumeTrend(db, userId, rangeStart);
         const oneRmTrend = this.getOneRmTrend(db, userId, rangeStart);
-        const { averageRpe, logs } = this.getLogs(db, userId, rangeStart);
+        const { averageRpe, logs, recoveryScore } = this.getLogs(db, userId, rangeStart);
 
         return {
             averageRpe,
             range,
+            recoveryScore,
             volumeTrend,
             oneRmTrend,
             logs
@@ -117,7 +118,7 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
         rangeStart: string
-    ): { averageRpe: number; logs: ProgressLogDto[] } {
+    ): { averageRpe: number; logs: ProgressLogDto[]; recoveryScore: number } {
         const row = db
             .prepare(`
                 SELECT
@@ -142,14 +143,8 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
 
         return {
             averageRpe,
-            logs: [
-                {
-                    title: 'Recovery Score',
-                    subtitle: 'Based on daily readiness entries',
-                    value: `${readinessScore}%`,
-                    status: readinessScore >= 85 ? 'High Readiness' : 'Monitor Recovery'
-                }
-            ]
+            logs: [],
+            recoveryScore: readinessScore
         };
     }
 

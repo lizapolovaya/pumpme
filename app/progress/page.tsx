@@ -1,9 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight } from 'lucide-react';
 import { progressQueryOptions } from '../../lib/client/app-query';
-import type { ProgressLogDto, ProgressPointDto } from '../../lib/server/backend/types';
+import type { ProgressPointDto } from '../../lib/server/backend/types';
 
 type ChartPoint = {
     x: number;
@@ -52,22 +52,22 @@ function getVolumeDelta(currentValue: number, previousValue: number): string {
     return `${prefix}${delta.toFixed(1)}% vs Prev Week`;
 }
 
-function getCoachSummary(volumeTrend: ProgressPointDto[], oneRmTrend: ProgressPointDto[], logs: ProgressLogDto[]): string {
+function getCoachSummary(volumeTrend: ProgressPointDto[], oneRmTrend: ProgressPointDto[], recoveryScore: number): string {
     const latestVolume = volumeTrend.at(-1)?.value ?? 0;
     const previousVolume = volumeTrend.at(-2)?.value ?? 0;
     const volumeDelta = previousVolume > 0 ? Math.round(((latestVolume - previousVolume) / previousVolume) * 100) : 0;
     const peakOneRm = oneRmTrend.at(-1)?.value ?? oneRmTrend[0]?.value ?? 0;
-    const recoveryLog = logs.find((log) => log.title.includes('Recovery'));
+    const recoveryStatus = recoveryScore >= 85 ? 'High Readiness' : 'Monitor Recovery';
 
     if (latestVolume > previousVolume) {
-        return `Weekly volume is up ${volumeDelta}% and your estimated 1RM is now tracking at ${peakOneRm} kg. ${recoveryLog?.status ?? 'Recovery looks stable'}, so you can keep progressive overload on the next main lift.`;
+        return `Weekly volume is up ${volumeDelta}% and your estimated 1RM is now tracking at ${peakOneRm} kg. ${recoveryStatus}, so you can keep progressive overload on the next main lift.`;
     }
 
     if (latestVolume < previousVolume) {
-        return `Volume dipped this window while estimated 1RM is holding near ${peakOneRm} kg. ${recoveryLog?.status ?? 'Recovery is stable'}, so prioritize cleaner top sets before adding load again.`;
+        return `Volume dipped this window while estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so prioritize cleaner top sets before adding load again.`;
     }
 
-    return `Training output is stable and your estimated 1RM is holding near ${peakOneRm} kg. ${recoveryLog?.status ?? 'Recovery is stable'}, so keep intensity steady and look for better execution on primary sets.`;
+    return `Training output is stable and your estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so keep intensity steady and look for better execution on primary sets.`;
 }
 
 function getCoachHeadline(volumeTrend: ProgressPointDto[]): string {
@@ -85,24 +85,12 @@ function getCoachHeadline(volumeTrend: ProgressPointDto[]): string {
     return 'Output is holding steady.';
 }
 
-function getLogIcon(log: ProgressLogDto) {
-    if (log.title.includes('Recovery')) {
-        return HeartPulse;
-    }
-
-    return TrendingUp;
-}
-
-function getLogTone(log: ProgressLogDto): string {
-    if (log.title.includes('Recovery')) {
-        return 'text-tertiary';
-    }
-
-    return 'text-secondary';
-}
-
 function getRpeStatus(averageRpe: number): string {
     return averageRpe >= 8 ? 'Optimal Range' : 'Build Intensity';
+}
+
+function getRecoveryStatus(recoveryScore: number): string {
+    return recoveryScore >= 85 ? 'High Readiness' : 'Monitor Recovery';
 }
 
 export default function ProgressPage() {
@@ -129,9 +117,11 @@ export default function ProgressPage() {
     const previousVolume = volumeBars.at(-2)?.value ?? 0;
     const currentPeak = oneRmStats.at(-1)?.value ?? 0;
     const coachHeadline = getCoachHeadline(volumeBars);
-    const coachSummary = getCoachSummary(volumeBars, oneRmStats, summary.logs);
+    const coachSummary = getCoachSummary(volumeBars, oneRmStats, summary.recoveryScore);
     const averageRpe = summary.averageRpe;
     const rpeStatus = getRpeStatus(averageRpe);
+    const recoveryScore = summary.recoveryScore;
+    const recoveryStatus = getRecoveryStatus(recoveryScore);
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -155,8 +145,8 @@ export default function ProgressPage() {
                 </div>
             </section>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <section className="relative min-h-[220px] overflow-hidden rounded-xl bg-surface-container-low p-6 md:col-span-2">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+                <section className="relative min-h-[220px] overflow-hidden rounded-xl bg-surface-container-low p-6 lg:col-span-2">
                     <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-primary-dim/10 blur-3xl" />
                     <div className="relative z-10">
                         <div className="mb-4 flex items-center gap-2">
@@ -179,7 +169,7 @@ export default function ProgressPage() {
                     <div className="relative z-10 mt-6 flex items-center gap-4">
                         <a
                             className="flex items-center gap-1 font-label text-xs font-bold uppercase tracking-[0.18em] text-primary-dim transition-all hover:gap-2"
-                            href="#performance-logs"
+                            href="#progress-metrics"
                         >
                             View Detailed Insights
                             <MoveRight className="h-3.5 w-3.5" strokeWidth={2.2} />
@@ -213,9 +203,37 @@ export default function ProgressPage() {
                         </div>
                     </div>
                 </section>
+                <section className="relative overflow-hidden rounded-xl border border-tertiary/10 bg-surface-container-low p-6">
+                    <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-tertiary/10 blur-3xl" />
+                    <div className="relative z-10 flex h-full flex-col justify-between gap-6">
+                        <div>
+                            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/15 text-tertiary">
+                                <HeartPulse className="h-5 w-5" strokeWidth={2.1} />
+                            </div>
+                            <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-tertiary">Recovery Score</p>
+                            <p className="mt-3 font-headline text-5xl font-black italic tracking-[-0.08em] text-on-surface">
+                                {recoveryScore}
+                                <span className="ml-1 font-label text-xl uppercase not-italic">%</span>
+                            </p>
+                            <p className="mt-2 text-sm text-on-surface-variant">Based on daily readiness entries</p>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="h-2 overflow-hidden rounded-full bg-surface-container-highest">
+                                <div
+                                    className="h-full rounded-full bg-linear-to-r from-tertiary/60 to-tertiary"
+                                    style={{ width: `${Math.max(12, Math.min(100, recoveryScore))}%` }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="font-label text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">Recovery Signal</span>
+                                <span className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-tertiary">{recoveryStatus}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2" id="progress-metrics">
                 <section className="flex flex-col rounded-xl bg-surface-container-low p-8">
                     <div className="mb-10 flex items-start justify-between">
                         <div>
@@ -351,42 +369,35 @@ export default function ProgressPage() {
                 </section>
             </div>
 
-            <section className="rounded-xl bg-surface-container-low p-8" id="performance-logs">
-                <div className="mb-6 flex items-center justify-between">
-                    <div>
-                        <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-                            Performance Logs
-                        </p>
-                        <h3 className="font-headline text-3xl font-black tracking-[-0.06em]">Latest Signals</h3>
+            {summary.logs.length > 0 ? (
+                <section className="rounded-xl bg-surface-container-low p-8" id="performance-logs">
+                    <div className="mb-6 flex items-center justify-between">
+                        <div>
+                            <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
+                                Performance Logs
+                            </p>
+                            <h3 className="font-headline text-3xl font-black tracking-[-0.06em]">Latest Signals</h3>
+                        </div>
                     </div>
-                </div>
-                <div className="space-y-4">
-                    {summary.logs.map((log) => {
-                        const Icon = getLogIcon(log);
-
-                        return (
+                    <div className="space-y-4">
+                        {summary.logs.map((log) => (
                             <article
                                 key={`${log.title}-${log.subtitle}`}
                                 className="flex items-center justify-between rounded-2xl bg-surface-container-high p-5"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-surface-container-highest ${getLogTone(log)}`}>
-                                        <Icon className="h-5 w-5" strokeWidth={2.1} />
-                                    </div>
-                                    <div>
-                                        <p className="font-headline text-lg font-bold">{log.title}</p>
-                                        <p className="text-sm text-on-surface-variant">{log.subtitle}</p>
-                                    </div>
+                                <div>
+                                    <p className="font-headline text-lg font-bold">{log.title}</p>
+                                    <p className="text-sm text-on-surface-variant">{log.subtitle}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-headline text-2xl font-black">{log.value}</p>
-                                    <p className={`font-label text-[10px] font-bold uppercase ${getLogTone(log)}`}>{log.status}</p>
+                                    <p className="font-label text-[10px] font-bold uppercase text-on-surface-variant">{log.status}</p>
                                 </div>
                             </article>
-                        );
-                    })}
-                </div>
-            </section>
+                        ))}
+                    </div>
+                </section>
+            ) : null}
         </main>
     );
 }
