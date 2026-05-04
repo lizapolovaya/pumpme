@@ -166,6 +166,7 @@ export type ProgressLogDto = {
 
 export type ProgressSummaryDto = {
     range: string;
+    averageRpe: number;
     volumeTrend: ProgressPointDto[];
     oneRmTrend: ProgressPointDto[];
     logs: ProgressLogDto[];

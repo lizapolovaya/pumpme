@@ -27,9 +27,10 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
 
         const volumeTrend = this.getVolumeTrend(db, userId, rangeStart);
         const oneRmTrend = this.getOneRmTrend(db, userId, rangeStart);
-        const logs = this.getLogs(db, userId, rangeStart);
+        const { averageRpe, logs } = this.getLogs(db, userId, rangeStart);
 
         return {
+            averageRpe,
             range,
             volumeTrend,
             oneRmTrend,
@@ -116,7 +117,7 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
         rangeStart: string
-    ): ProgressLogDto[] {
+    ): { averageRpe: number; logs: ProgressLogDto[] } {
         const row = db
             .prepare(`
                 SELECT
@@ -139,20 +140,17 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         const averageRpe = row.averageRpe ? Number(row.averageRpe.toFixed(1)) : 8.2;
         const readinessScore = row.readinessScore ? Math.round(row.readinessScore) : 92;
 
-        return [
-            {
-                title: 'Relative Intensity (RPE) Average',
-                subtitle: 'Average across logged workout sets',
-                value: averageRpe.toFixed(1),
-                status: averageRpe >= 8 ? 'Optimal Range' : 'Build Intensity'
-            },
-            {
-                title: 'Recovery Score',
-                subtitle: 'Based on daily readiness entries',
-                value: `${readinessScore}%`,
-                status: readinessScore >= 85 ? 'High Readiness' : 'Monitor Recovery'
-            }
-        ];
+        return {
+            averageRpe,
+            logs: [
+                {
+                    title: 'Recovery Score',
+                    subtitle: 'Based on daily readiness entries',
+                    value: `${readinessScore}%`,
+                    status: readinessScore >= 85 ? 'High Readiness' : 'Monitor Recovery'
+                }
+            ]
+        };
     }
 
     private parseRangeDays(range: string): number {

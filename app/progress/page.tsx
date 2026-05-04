@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Brain, ChevronDown, CircleHelp, Clock3, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
 import { progressQueryOptions } from '../../lib/client/app-query';
 import type { ProgressLogDto, ProgressPointDto } from '../../lib/server/backend/types';
 
@@ -101,6 +101,10 @@ function getLogTone(log: ProgressLogDto): string {
     return 'text-secondary';
 }
 
+function getRpeStatus(averageRpe: number): string {
+    return averageRpe >= 8 ? 'Optimal Range' : 'Build Intensity';
+}
+
 export default function ProgressPage() {
     const { data: summary, error, isLoading } = useQuery(progressQueryOptions('30d'));
 
@@ -126,6 +130,8 @@ export default function ProgressPage() {
     const currentPeak = oneRmStats.at(-1)?.value ?? 0;
     const coachHeadline = getCoachHeadline(volumeBars);
     const coachSummary = getCoachSummary(volumeBars, oneRmStats, summary.logs);
+    const averageRpe = summary.averageRpe;
+    const rpeStatus = getRpeStatus(averageRpe);
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -178,6 +184,33 @@ export default function ProgressPage() {
                             View Detailed Insights
                             <MoveRight className="h-3.5 w-3.5" strokeWidth={2.2} />
                         </a>
+                    </div>
+                </section>
+                <section className="relative overflow-hidden rounded-xl border border-secondary/10 bg-surface-container-low p-6">
+                    <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-secondary/10 blur-3xl" />
+                    <div className="relative z-10 flex h-full flex-col justify-between gap-6">
+                        <div>
+                            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+                                <Gauge className="h-5 w-5" strokeWidth={2.1} />
+                            </div>
+                            <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary">RPE Average</p>
+                            <p className="mt-3 font-headline text-5xl font-black italic tracking-[-0.08em] text-on-surface">
+                                {averageRpe.toFixed(1)}
+                            </p>
+                            <p className="mt-2 text-sm text-on-surface-variant">Average across logged workout sets</p>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="h-2 overflow-hidden rounded-full bg-surface-container-highest">
+                                <div
+                                    className="h-full rounded-full bg-linear-to-r from-secondary/60 to-secondary"
+                                    style={{ width: `${Math.max(12, Math.min(100, Math.round((averageRpe / 10) * 100)))}%` }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="font-label text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">Target Intensity</span>
+                                <span className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">{rpeStatus}</span>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>

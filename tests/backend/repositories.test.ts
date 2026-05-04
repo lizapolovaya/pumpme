@@ -160,3 +160,49 @@ test('default today session is empty when no workout input exists yet', async ()
     assert.equal(session?.status, 'scheduled');
     assert.deepEqual(session?.exercises, []);
 });
+
+test('analytics repository returns average RPE as a first-class progress metric', async () => {
+    const repositories = createSqliteRepositories();
+
+    const session = await repositories.workouts.startSession('local-user', {
+        date: '2026-04-12',
+        title: 'Intensity Session',
+        focus: 'Upper body'
+    });
+    const withExercise = await repositories.workouts.addExercise('local-user', session.id, {
+        exerciseId: 'exercise-overhead-press',
+        exerciseName: 'Overhead Press'
+    });
+    const exercise = withExercise.exercises[0];
+    assert.ok(exercise);
+
+    const withFirstSet = await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+        weightKg: 40,
+        reps: 6,
+        rpe: 7
+    });
+    const firstSet = withFirstSet.exercises[0]?.sets[0];
+    assert.ok(firstSet);
+
+    const withSecondSet = await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+        weightKg: 42.5,
+        reps: 5,
+        rpe: 9
+    });
+    const secondSet = withSecondSet.exercises[0]?.sets[1];
+    assert.ok(secondSet);
+
+    await repositories.workouts.updateSet('local-user', session.id, firstSet!.id, {
+        completed: true
+    });
+    await repositories.workouts.updateSet('local-user', session.id, secondSet!.id, {
+        completed: true
+    });
+    await repositories.workouts.finishSession('local-user', session.id);
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', '30d');
+
+    assert.equal(summary.averageRpe, 8);
+    assert.equal(summary.logs.some((log) => log.title.includes('RPE')), false);
+    assert.equal(summary.logs.some((log) => log.title === 'Recovery Score'), true);
+});

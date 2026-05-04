@@ -98,12 +98,6 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
 
         const logs: ProgressLogDto[] = [
             {
-                title: 'Relative Intensity (RPE) Average',
-                subtitle: 'Average across logged workout sets',
-                value: averageRpe.toFixed(1),
-                status: averageRpe >= 8 ? 'Optimal Range' : 'Build Intensity'
-            },
-            {
                 title: 'Recovery Score',
                 subtitle: 'Based on daily readiness entries',
                 value: `${readinessScore}%`,
@@ -112,6 +106,7 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         ];
 
         return {
+            averageRpe,
             range,
             volumeTrend,
             oneRmTrend,
