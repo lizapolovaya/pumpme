@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getSupabaseAuthConfig } from './lib/server/auth/config';
 
-const PUBLIC_PATHS = new Set(['/auth/callback', '/auth/signout', '/help', '/login', '/privacy']);
+const PUBLIC_PATHS = new Set(['/auth/callback', '/auth/google', '/auth/signout', '/help', '/login', '/privacy']);
 
 function isPublicPath(pathname: string): boolean {
     if (PUBLIC_PATHS.has(pathname)) {
