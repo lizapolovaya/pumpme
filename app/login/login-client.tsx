@@ -3,16 +3,15 @@
 import { Activity, Bolt } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { startGoogleAuthFlow } from '../../lib/client/auth';
-import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 
 type LoginClientProps = {
+    isConfigured: boolean;
     nextPath: string;
 };
 
-export function LoginClient({ nextPath }: LoginClientProps) {
+export function LoginClient({ isConfigured, nextPath }: LoginClientProps) {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
-    const isConfigured = Boolean(getSupabaseBrowserClient());
 
     function handleGoogleLogin() {
         startTransition(() => {

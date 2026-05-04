@@ -4,8 +4,8 @@ export type SupabaseAuthConfig = {
 };
 
 export function getSupabaseAuthConfig(): SupabaseAuthConfig | null {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const url = process.env.PUMPME_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.PUMPME_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !anonKey) {
         return null;
@@ -34,4 +34,3 @@ export function getGoogleOAuthClientCredentials() {
         clientSecret
     };
 }
-
