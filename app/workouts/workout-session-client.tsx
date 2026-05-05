@@ -123,7 +123,8 @@ export function WorkoutSessionClient({
     const [exerciseDraftName, setExerciseDraftName] = useState('');
     const [isPending, startTransition] = useTransition();
     const isCompleted = session.status === 'completed';
-    const isReadOnly = isPending || (isCompleted && !allowEditingCompleted);
+    const isSessionLocked = isCompleted && !allowEditingCompleted;
+    const isActionDisabled = isPending || isSessionLocked;
 
     useEffect(() => {
         setSession(initialSession);
@@ -359,6 +360,9 @@ export function WorkoutSessionClient({
         field: 'weightKg' | 'reps' | 'rpe',
         value: string
     ) {
+        const currentSet = session.exercises
+            .flatMap((exercise) => exercise.sets)
+            .find((set) => set.id === setId);
         const trimmed = value.trim();
         const parsedValue = trimmed.length === 0 ? null : Number(trimmed);
 
@@ -367,6 +371,18 @@ export function WorkoutSessionClient({
                 error: 'Set values must be numeric.',
                 message: null
             });
+            return;
+        }
+
+        if (!currentSet) {
+            setSaveState({
+                error: 'Workout set not found.',
+                message: null
+            });
+            return;
+        }
+
+        if (currentSet[field] === parsedValue) {
             return;
         }
 
@@ -497,7 +513,7 @@ export function WorkoutSessionClient({
                         {session.title}
                         <button
                             className="text-primary-container disabled:opacity-50"
-                            disabled={isReadOnly}
+                            disabled={isActionDisabled}
                             onClick={handleRenameWorkout}
                             type="button"
                         >
@@ -569,7 +585,7 @@ export function WorkoutSessionClient({
                                     <button
                                         aria-label={`Rename ${exercise.exerciseName}`}
                                         className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
-                                        disabled={isReadOnly}
+                                        disabled={isActionDisabled}
                                         onClick={() => handleExerciseAction(exercise.id, exercise.exerciseName)}
                                         type="button"
                                     >
@@ -578,7 +594,7 @@ export function WorkoutSessionClient({
                                     <button
                                         aria-label={`Delete ${exercise.exerciseName}`}
                                         className="text-error transition-colors hover:text-error/80 disabled:opacity-50"
-                                        disabled={isReadOnly}
+                                        disabled={isActionDisabled}
                                         onClick={() => handleDeleteExercise(exercise.id, exercise.exerciseName)}
                                         type="button"
                                     >
@@ -610,7 +626,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.weightKg ?? ''}
-                                                    disabled={isReadOnly}
+                                                    disabled={isSessionLocked}
                                                     inputMode="numeric"
                                                     onBlur={(event) => handleSetChange(set.id, 'weightKg', sanitizeWeightInput(event.target.value))}
                                                     onInput={(event) => {
@@ -624,7 +640,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.reps ?? ''}
-                                                    disabled={isReadOnly}
+                                                    disabled={isSessionLocked}
                                                     inputMode="numeric"
                                                     maxLength={2}
                                                     onBlur={(event) => handleSetChange(set.id, 'reps', sanitizeRepsInput(event.target.value))}
@@ -639,7 +655,7 @@ export function WorkoutSessionClient({
                                                 <input
                                                     className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.rpe ?? ''}
-                                                    disabled={isReadOnly}
+                                                    disabled={isSessionLocked}
                                                     inputMode="numeric"
                                                     maxLength={2}
                                                     onBlur={(event) => handleSetChange(set.id, 'rpe', sanitizeRpeInput(event.target.value))}
@@ -654,7 +670,7 @@ export function WorkoutSessionClient({
                                                 <button
                                                     aria-label={`Copy set ${set.order} for ${exercise.exerciseName}`}
                                                     className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40"
-                                                    disabled={isReadOnly}
+                                                    disabled={isActionDisabled}
                                                     onClick={() => handleCopySet(exercise.id, set)}
                                                     type="button"
                                                 >
@@ -664,7 +680,7 @@ export function WorkoutSessionClient({
                                             <div className="col-span-1 flex justify-end">
                                                 <button
                                                     className="text-error disabled:opacity-40"
-                                                    disabled={isReadOnly}
+                                                    disabled={isActionDisabled}
                                                     onClick={() => handleRemoveSet(set.id)}
                                                     type="button"
                                                 >
@@ -677,7 +693,7 @@ export function WorkoutSessionClient({
 
                                 <button
                                     className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-outline-variant py-3 font-label text-sm font-bold text-on-surface-variant transition-all hover:border-primary-container/50 hover:bg-primary-container/5 disabled:cursor-not-allowed disabled:opacity-50"
-                                    disabled={isReadOnly}
+                                    disabled={isActionDisabled}
                                     onClick={() => handleAddSet(exercise.id)}
                                     type="button"
                                 >
@@ -692,7 +708,7 @@ export function WorkoutSessionClient({
 
             <button
                 className="group mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-high py-5 font-headline font-bold text-primary-container transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isReadOnly}
+                disabled={isActionDisabled}
                 onClick={handleAddExerciseOpen}
                 type="button"
             >
