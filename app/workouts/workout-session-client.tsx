@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     Activity,
     CirclePlus,
+    Copy,
     Dumbbell,
     PencilLine,
     Scale,
@@ -401,6 +402,28 @@ export function WorkoutSessionClient({
         );
     }
 
+    function handleCopySet(
+        exerciseRowId: string,
+        set: WorkoutSessionDto['exercises'][number]['sets'][number]
+    ) {
+        handleMutation(
+            () =>
+                requestSession(`/api/workouts/sessions/${session.id}/sets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        exerciseRowId,
+                        weightKg: set.weightKg,
+                        reps: set.reps,
+                        rpe: set.rpe
+                    })
+                }),
+            'Set copied.'
+        );
+    }
+
     function handleRemoveSet(setId: string) {
         handleMutation(
             () =>
@@ -565,11 +588,12 @@ export function WorkoutSessionClient({
                             </div>
 
                             <div className="px-5 pb-5">
-                                <div className="mb-3 grid grid-cols-12 gap-2 px-2">
-                                    <div className="col-span-2 font-label text-[10px] font-bold uppercase text-on-surface-variant">Set</div>
+                                <div className="mb-3 grid grid-cols-12 gap-1 px-1">
+                                    <div className="col-span-1 font-label text-[10px] font-bold uppercase text-on-surface-variant">Set</div>
                                     <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">Weight Kg</div>
                                     <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">Reps</div>
                                     <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">RPE</div>
+                                    <div className="col-span-1 text-center font-label text-[10px] font-bold uppercase text-on-surface-variant">Copy</div>
                                     <div className="col-span-1 text-right font-label text-[10px] font-bold uppercase text-on-surface-variant">Del</div>
                                 </div>
 
@@ -577,14 +601,14 @@ export function WorkoutSessionClient({
                                     {exercise.sets.map((set) => (
                                         <div
                                             key={set.id}
-                                            className="grid grid-cols-12 items-center gap-2 rounded-lg bg-surface-container-lowest/50 p-2"
+                                            className="grid grid-cols-12 items-center gap-1 rounded-lg bg-surface-container-lowest/50 p-2"
                                         >
-                                            <div className="col-span-2 font-label font-bold text-on-surface-variant">
+                                            <div className="col-span-1 font-label font-bold text-on-surface-variant">
                                                 {set.order}
                                             </div>
                                             <div className="col-span-3">
                                                 <input
-                                                    className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
+                                                    className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.weightKg ?? ''}
                                                     disabled={isReadOnly}
                                                     inputMode="numeric"
@@ -598,7 +622,7 @@ export function WorkoutSessionClient({
                                             </div>
                                             <div className="col-span-3">
                                                 <input
-                                                    className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
+                                                    className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.reps ?? ''}
                                                     disabled={isReadOnly}
                                                     inputMode="numeric"
@@ -613,7 +637,7 @@ export function WorkoutSessionClient({
                                             </div>
                                             <div className="col-span-3">
                                                 <input
-                                                    className="w-full rounded-lg border-none bg-surface-container-highest text-center font-label text-sm focus:ring-1 focus:ring-primary-dim"
+                                                    className="w-full rounded-lg border-none bg-surface-container-highest px-2 text-center font-label text-xs focus:ring-1 focus:ring-primary-dim"
                                                     defaultValue={set.rpe ?? ''}
                                                     disabled={isReadOnly}
                                                     inputMode="numeric"
@@ -625,6 +649,17 @@ export function WorkoutSessionClient({
                                                     pattern="[0-9]*"
                                                     type="text"
                                                 />
+                                            </div>
+                                            <div className="col-span-1 flex justify-center">
+                                                <button
+                                                    aria-label={`Copy set ${set.order} for ${exercise.exerciseName}`}
+                                                    className="text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40"
+                                                    disabled={isReadOnly}
+                                                    onClick={() => handleCopySet(exercise.id, set)}
+                                                    type="button"
+                                                >
+                                                    <Copy className="h-4 w-4" strokeWidth={2.1} />
+                                                </button>
                                             </div>
                                             <div className="col-span-1 flex justify-end">
                                                 <button
