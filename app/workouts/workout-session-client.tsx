@@ -569,7 +569,7 @@ export function WorkoutSessionClient({
                                     <div className="col-span-2 font-label text-[10px] font-bold uppercase text-on-surface-variant">Set</div>
                                     <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">Weight Kg</div>
                                     <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">Reps</div>
-                                    <div className="col-span-3 text-right font-label text-[10px] font-bold uppercase text-on-surface-variant">RPE</div>
+                                    <div className="col-span-3 font-label text-[10px] font-bold uppercase text-on-surface-variant">RPE</div>
                                     <div className="col-span-1 text-right font-label text-[10px] font-bold uppercase text-on-surface-variant">Del</div>
                                 </div>
 
