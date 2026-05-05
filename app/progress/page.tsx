@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight, TrendingUp } from 'lucide-react';
+import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight } from 'lucide-react';
 import { progressQueryOptions } from '../../lib/client/app-query';
 import type { ProgressPointDto } from '../../lib/server/backend/types';
 
@@ -145,8 +145,8 @@ export default function ProgressPage() {
                 </div>
             </section>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-12">
-                <section className="relative min-h-[220px] overflow-hidden rounded-xl bg-surface-container-low p-6 md:col-span-2 xl:col-span-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+                <section className="relative min-h-[220px] overflow-hidden rounded-xl bg-surface-container-low p-6 lg:col-span-2">
                     <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-primary-dim/10 blur-3xl" />
                     <div className="relative z-10">
                         <div className="mb-4 flex items-center gap-2">
@@ -174,36 +174,6 @@ export default function ProgressPage() {
                             View Detailed Insights
                             <MoveRight className="h-3.5 w-3.5" strokeWidth={2.2} />
                         </a>
-                    </div>
-                </section>
-                <section className="relative overflow-hidden rounded-xl border border-primary-dim/10 bg-surface-container-low p-6">
-                    <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-primary-dim/10 blur-3xl" />
-                    <div className="relative z-10 flex h-full flex-col justify-between gap-6">
-                        <div>
-                            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-dim/15 text-primary-dim">
-                                <TrendingUp className="h-5 w-5" strokeWidth={2.1} />
-                            </div>
-                            <p className="font-label text-xs font-bold uppercase tracking-[0.18em] text-primary-dim">Volume Trend</p>
-                            <p className="mt-3 font-headline text-5xl font-black italic tracking-[-0.08em] text-on-surface">
-                                {latestVolume.toLocaleString('en-US')}
-                                <span className="ml-1 font-label text-xl uppercase not-italic">KG</span>
-                            </p>
-                            <p className="mt-2 text-sm text-on-surface-variant">Total weight logged in the latest week</p>
-                        </div>
-                        <div className="space-y-3">
-                            <div className="h-2 overflow-hidden rounded-full bg-surface-container-highest">
-                                <div
-                                    className="h-full rounded-full bg-linear-to-r from-primary-dim/60 to-primary-dim"
-                                    style={{ width: `${getVolumeBarFill(latestVolume, volumeMax)}` }}
-                                />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="font-label text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">Weekly Output</span>
-                                <span className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
-                                    {getVolumeDelta(latestVolume, previousVolume)}
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </section>
                 <section className="relative overflow-hidden rounded-xl border border-secondary/10 bg-surface-container-low p-6">
