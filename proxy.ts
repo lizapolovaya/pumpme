@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getSupabaseAuthConfig } from './lib/server/auth/config';
+import { getSupabaseAuthConfig, isE2EAuthBypassEnabled } from './lib/server/auth/config';
 
 const PUBLIC_PATHS = new Set(['/auth/callback', '/auth/google', '/auth/signout', '/help', '/login', '/privacy']);
 
@@ -14,6 +14,10 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+    if (isE2EAuthBypassEnabled()) {
+        return NextResponse.next();
+    }
+
     const authConfig = getSupabaseAuthConfig();
 
     if (!authConfig) {

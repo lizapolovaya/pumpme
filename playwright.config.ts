@@ -23,6 +23,7 @@ export default defineConfig({
         env: {
             ...process.env,
             PUMPME_SQLITE_PATH: sqlitePath,
+            PUMPME_E2E_AUTH_BYPASS: '1',
             // Prevent Next from treating local e2e as Vercel runtime.
             VERCEL: '0',
             HOME: process.env.HOME ?? os.homedir()

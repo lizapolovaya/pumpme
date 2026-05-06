@@ -21,6 +21,10 @@ export function isSupabaseAuthEnabled(): boolean {
     return getSupabaseAuthConfig() !== null;
 }
 
+export function isE2EAuthBypassEnabled(): boolean {
+    return process.env.PUMPME_E2E_AUTH_BYPASS === '1';
+}
+
 export function getGoogleOAuthClientCredentials() {
     const clientId = process.env.PUMPME_GOOGLE_OAUTH_CLIENT_ID ?? null;
     const clientSecret = process.env.PUMPME_GOOGLE_OAUTH_CLIENT_SECRET ?? null;

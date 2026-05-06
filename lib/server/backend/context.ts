@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import type { UserContext } from './types';
 import { createSupabaseServerAuthClient } from '../auth/supabase';
 import { ensureBackendUserFromAuthUser } from '../auth/users';
-import { isSupabaseAuthEnabled } from '../auth/config';
+import { isE2EAuthBypassEnabled, isSupabaseAuthEnabled } from '../auth/config';
 
 export const DEFAULT_LOCAL_USER_ID = 'local-user';
 
@@ -14,6 +14,15 @@ export class AuthenticationError extends Error {
 }
 
 export async function resolveCurrentUserContext(): Promise<UserContext> {
+    if (isE2EAuthBypassEnabled()) {
+        const requestHeaders = await headers();
+        const forwardedUserId = requestHeaders.get('x-pumpme-user-id');
+
+        return {
+            userId: forwardedUserId ?? DEFAULT_LOCAL_USER_ID
+        };
+    }
+
     if (isSupabaseAuthEnabled()) {
         const client = await createSupabaseServerAuthClient();
 
