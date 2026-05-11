@@ -116,9 +116,10 @@ test('workout repository auto-recalculates totals on set edits and removals', as
     assert.ok(set);
     assert.equal(withSet.totalVolumeKg, 500);
 
-    const afterUpdate = await repositories.workouts.updateSet('local-user', session.id, set!.id, {
+    await repositories.workouts.updateSet('local-user', session.id, set!.id, {
         reps: 6
     });
+    const afterUpdate = await repositories.workouts.getSession('local-user', session.id);
     assert.equal(afterUpdate.totalVolumeKg, 600);
     assert.equal(afterUpdate.status, 'active');
 

@@ -49,7 +49,7 @@ export interface WorkoutService {
     updateExercise(sessionId: string, exerciseRowId: string, input: UpdateWorkoutExerciseInput): Promise<WorkoutSessionDto>;
     removeExercise(sessionId: string, exerciseRowId: string): Promise<WorkoutSessionDto>;
     addSet(sessionId: string, exerciseRowId: string, input: AddWorkoutSetInput): Promise<WorkoutSessionDto>;
-    updateSet(sessionId: string, setId: string, input: UpdateWorkoutSetInput): Promise<WorkoutSessionDto>;
+    updateSet(sessionId: string, setId: string, input: UpdateWorkoutSetInput): Promise<void>;
     removeSet(sessionId: string, setId: string): Promise<WorkoutSessionDto>;
     finishSession(sessionId: string): Promise<WorkoutSessionDto>;
 }

@@ -11,7 +11,7 @@ import {
     Trash2,
     TrendingUp
 } from 'lucide-react';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { queryKeys } from '../../lib/client/app-query';
 import { getSupabaseBrowserClient } from '../../lib/client/supabase-browser';
 import type { WorkoutsBootstrapResponse, WorkoutSessionDto, WorkoutTemplateDto } from '../../lib/server/backend/types';
@@ -27,6 +27,11 @@ type WorkoutSessionClientProps = {
 type SaveState = {
     error: string | null;
     message: string | null;
+};
+
+type SetUpdateResponse = {
+    ok: boolean;
+    setId: string;
 };
 
 const statCards = [
@@ -122,6 +127,7 @@ export function WorkoutSessionClient({
     const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false);
     const [exerciseDraftName, setExerciseDraftName] = useState('');
     const [isPending, startTransition] = useTransition();
+    const ignoredRealtimeSetEvents = useRef(0);
     const isCompleted = session.status === 'completed';
     const isSessionLocked = isCompleted && !allowEditingCompleted;
     const isActionDisabled = isPending || isSessionLocked;
@@ -144,6 +150,65 @@ export function WorkoutSessionClient({
         return response.json() as Promise<WorkoutSessionDto>;
     }
 
+    async function requestSetUpdate(
+        setId: string,
+        input: Record<string, number | boolean | null>
+    ): Promise<SetUpdateResponse> {
+        const response = await fetch(`/api/workouts/sessions/${session.id}/sets/${setId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(input)
+        });
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(payload?.error ?? 'Request failed');
+        }
+
+        return response.json() as Promise<SetUpdateResponse>;
+    }
+
+    function commitSession(nextSession: WorkoutSessionDto) {
+        setSession(nextSession);
+        queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
+            current
+                ? {
+                      ...current,
+                      session: nextSession
+                  }
+                : current
+        );
+    }
+
+    function updateSessionLocally(
+        updater: (currentSession: WorkoutSessionDto) => WorkoutSessionDto
+    ) {
+        setSession((currentSession) => {
+            const nextSession = updater(currentSession);
+            queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
+                current
+                    ? {
+                          ...current,
+                          session: nextSession
+                      }
+                    : current
+            );
+            return nextSession;
+        });
+    }
+
+    function invalidateRelatedQueries() {
+        void queryClient.invalidateQueries({
+            predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                (query.queryKey[0] === 'today' ||
+                    query.queryKey[0] === 'calendar' ||
+                    query.queryKey[0] === 'progress')
+        });
+    }
+
     function handleMutation(
         action: () => Promise<WorkoutSessionDto>,
         successMessage: string,
@@ -157,22 +222,8 @@ export function WorkoutSessionClient({
 
             try {
                 const nextSession = await action();
-                setSession(nextSession);
-                queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
-                    current
-                        ? {
-                              ...current,
-                              session: nextSession
-                          }
-                        : current
-                );
-                void queryClient.invalidateQueries({
-                    predicate: (query) =>
-                        Array.isArray(query.queryKey) &&
-                        (query.queryKey[0] === 'today' ||
-                            query.queryKey[0] === 'calendar' ||
-                            query.queryKey[0] === 'progress')
-                });
+                commitSession(nextSession);
+                invalidateRelatedQueries();
                 setSaveState({
                     error: null,
                     message: successMessage
@@ -226,15 +277,7 @@ export function WorkoutSessionClient({
                 try {
                     const nextSession = await requestSession(`/api/workouts/sessions/${session.id}`);
                     if (isActive) {
-                        setSession(nextSession);
-                        queryClient.setQueryData(queryKeys.workouts(queryDate, allowEditingCompleted), (current: WorkoutsBootstrapResponse | undefined) =>
-                            current
-                                ? {
-                                      ...current,
-                                      session: nextSession
-                                  }
-                                : current
-                        );
+                        commitSession(nextSession);
                     }
                 } catch {
                     return;
@@ -245,6 +288,11 @@ export function WorkoutSessionClient({
         const handleSetChange = (payload: { new: Record<string, unknown> | null; old: Record<string, unknown> | null }) => {
             const row = payload.new ?? payload.old;
             const sessionExerciseId = typeof row?.session_exercise_id === 'string' ? row.session_exercise_id : null;
+
+            if (ignoredRealtimeSetEvents.current > 0) {
+                ignoredRealtimeSetEvents.current -= 1;
+                return;
+            }
 
             if (sessionExerciseId && exerciseIds.has(sessionExerciseId)) {
                 syncSession();
@@ -386,20 +434,65 @@ export function WorkoutSessionClient({
             return;
         }
 
-        handleMutation(
-            () =>
-                requestSession(`/api/workouts/sessions/${session.id}/sets/${setId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        [field]: parsedValue,
-                        completed: true
-                    })
-                }),
-            'Set updated.'
-        );
+        const previousSession = session;
+        const nextCompleted = currentSet.completed || parsedValue !== null;
+
+        updateSessionLocally((currentSession) => {
+            const nextExercises = currentSession.exercises.map((exercise) => ({
+                ...exercise,
+                sets: exercise.sets.map((set) =>
+                    set.id === setId
+                        ? {
+                              ...set,
+                              [field]: parsedValue,
+                              completed: nextCompleted
+                          }
+                        : set
+                )
+            }));
+            const nextSession = {
+                ...currentSession,
+                exercises: nextExercises
+            };
+
+            return {
+                ...nextSession,
+                totalVolumeKg: getSessionVolume(nextSession)
+            };
+        });
+
+        setSaveState({
+            error: null,
+            message: null
+        });
+        ignoredRealtimeSetEvents.current += 1;
+
+        void requestSetUpdate(setId, {
+            [field]: parsedValue,
+            completed: true
+        })
+            .then(() => {
+                setSaveState({
+                    error: null,
+                    message: 'Set updated.'
+                });
+            })
+            .catch(async (error) => {
+                ignoredRealtimeSetEvents.current = Math.max(0, ignoredRealtimeSetEvents.current - 1);
+                commitSession(previousSession);
+
+                try {
+                    const refreshedSession = await requestSession(`/api/workouts/sessions/${session.id}`);
+                    commitSession(refreshedSession);
+                } catch {
+                    // Keep the reverted local snapshot if the refresh also fails.
+                }
+
+                setSaveState({
+                    error: error instanceof Error ? error.message : 'Unable to update workout',
+                    message: null
+                });
+            });
     }
 
     function handleAddSet(exerciseRowId: string) {

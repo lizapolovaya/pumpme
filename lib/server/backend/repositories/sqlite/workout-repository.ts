@@ -306,7 +306,7 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         sessionId: string,
         setId: string,
         input: UpdateWorkoutSetInput
-    ): Promise<WorkoutSessionDto> {
+    ): Promise<void> {
         const db = getSqliteRepositoryDatabase();
         this.requireSessionRow(db, userId, sessionId);
 
@@ -345,7 +345,6 @@ export class SqliteWorkoutRepository implements WorkoutRepository {
         });
 
         this.syncSessionMetrics(db, userId, sessionId);
-        return this.getSessionById(userId, sessionId);
     }
 
     async removeSet(userId: string, sessionId: string, setId: string): Promise<WorkoutSessionDto> {

@@ -16,9 +16,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         const body = await parseJsonBody(request);
         const input = parseWorkoutSetUpdate(body);
         const services = createBackendServices(userId);
-        const session = await services.workouts.updateSet(sessionId, setId, input);
+        await services.workouts.updateSet(sessionId, setId, input);
 
-        return NextResponse.json(session);
+        return NextResponse.json({ ok: true, setId });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to update workout set';
         const status = message.includes('must') || message.includes('invalid') ? 400 : 500;

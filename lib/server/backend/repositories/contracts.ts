@@ -56,7 +56,7 @@ export interface WorkoutRepository {
         sessionId: string,
         setId: string,
         input: UpdateWorkoutSetInput
-    ): Promise<WorkoutSessionDto>;
+    ): Promise<void>;
     removeSet(userId: string, sessionId: string, setId: string): Promise<WorkoutSessionDto>;
     finishSession(userId: string, sessionId: string): Promise<WorkoutSessionDto>;
 }

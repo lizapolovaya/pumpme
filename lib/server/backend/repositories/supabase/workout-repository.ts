@@ -395,7 +395,7 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
         return this.getSessionById(userId, sessionId);
     }
 
-    async updateSet(userId: string, sessionId: string, setId: string, input: UpdateWorkoutSetInput): Promise<WorkoutSessionDto> {
+    async updateSet(userId: string, sessionId: string, setId: string, input: UpdateWorkoutSetInput): Promise<void> {
         await this.requireSessionRow(userId, sessionId);
 
         const currentResult = await this.client
@@ -429,7 +429,6 @@ export class SupabaseWorkoutRepository implements WorkoutRepository {
         }
 
         await this.syncSessionMetrics(userId, sessionId);
-        return this.getSessionById(userId, sessionId);
     }
 
     async removeSet(userId: string, sessionId: string, setId: string): Promise<WorkoutSessionDto> {
