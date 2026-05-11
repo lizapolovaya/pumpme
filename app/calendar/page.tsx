@@ -62,11 +62,21 @@ function getDayButtonTone(
     return 'bg-surface-container-low hover:bg-surface-container-high';
 }
 
+function getSelectedMonthParams(selectedDate: string) {
+    const date = new Date(`${selectedDate}T00:00:00.000Z`);
+
+    return {
+        month: date.getUTCMonth() + 1,
+        year: date.getUTCFullYear()
+    };
+}
+
 function CalendarPageContent() {
     const searchParams = useSearchParams();
-    const { month, selectedDate: fallbackDate, year } = getCurrentMonthParams();
+    const { selectedDate: fallbackDate } = getCurrentMonthParams();
     const rawSelectedDate = searchParams.get('date');
     const selectedDate = rawSelectedDate && /^\d{4}-\d{2}-\d{2}$/.test(rawSelectedDate) ? rawSelectedDate : fallbackDate;
+    const { month, year } = getSelectedMonthParams(selectedDate);
     const { data: calendar, error, isLoading } = useQuery(calendarQueryOptions(year, month, selectedDate));
 
     if (isLoading || !calendar) {
@@ -93,7 +103,11 @@ function CalendarPageContent() {
             ))
             ? rawSelectedSession
             : null;
-    const activeDays = calendar.days.filter((day) => day.completedSessionCount > 0).length;
+    const currentMonthDays = calendar.days.filter((day) => {
+        const date = new Date(`${day.date}T00:00:00.000Z`);
+        return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month;
+    });
+    const activeDays = currentMonthDays.filter((day) => day.sessionCount > 0).length;
     const weeklyVolumeKg = calendar.days.reduce((sum, day) => sum + (day.hasVolume ? 1 : 0), 0) * 12.4;
 
     return (
@@ -107,7 +121,7 @@ function CalendarPageContent() {
                         </h2>
                     </div>
                     <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-                        Consistency: {Math.round((activeDays / calendar.days.length) * 100)}% •{' '}
+                        Consistency: {Math.round((activeDays / currentMonthDays.length) * 100)}% •{' '}
                         {calendar.days.reduce((sum, day) => sum + day.sessionCount, 0)} Sessions logged
                     </p>
                 </div>
@@ -127,7 +141,9 @@ function CalendarPageContent() {
                             Active Days
                         </span>
                         <div className="flex items-baseline gap-1">
-                            <span className="font-headline text-2xl font-black text-primary-dim">{activeDays}/28</span>
+                            <span className="font-headline text-2xl font-black text-primary-dim">
+                                {activeDays}/{currentMonthDays.length}
+                            </span>
                         </div>
                     </article>
                 </div>
