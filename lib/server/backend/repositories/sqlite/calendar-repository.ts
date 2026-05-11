@@ -63,8 +63,10 @@ export class SqliteCalendarRepository implements CalendarRepository {
         const gridStart = new Date(firstOfMonth);
         gridStart.setUTCDate(1 - ((firstOfMonth.getUTCDay() + 6) % 7));
 
-        const gridEnd = new Date(gridStart);
-        gridEnd.setUTCDate(gridStart.getUTCDate() + 27);
+        const lastOfMonth = new Date(Date.UTC(year, month, 0));
+        const gridEnd = new Date(lastOfMonth);
+        gridEnd.setUTCDate(lastOfMonth.getUTCDate() + ((7 - lastOfMonth.getUTCDay()) % 7));
+        const totalGridDays = Math.round((gridEnd.getTime() - gridStart.getTime()) / 86_400_000) + 1;
 
         const rows = db
             .prepare(`
@@ -122,7 +124,7 @@ export class SqliteCalendarRepository implements CalendarRepository {
         const rowsByDate = new Map(rows.map((row) => [row.date, row]));
         const days: CalendarDayMarkerDto[] = [];
 
-        for (let index = 0; index < 28; index += 1) {
+        for (let index = 0; index < totalGridDays; index += 1) {
             const current = new Date(gridStart);
             current.setUTCDate(gridStart.getUTCDate() + index);
             const currentDate = current.toISOString().slice(0, 10);

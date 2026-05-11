@@ -108,6 +108,7 @@ function CalendarPageContent() {
         return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month;
     });
     const activeDays = currentMonthDays.filter((day) => day.sessionCount > 0).length;
+    const loggedSessions = currentMonthDays.reduce((sum, day) => sum + day.sessionCount, 0);
     const weeklyVolumeKg = calendar.days.reduce((sum, day) => sum + (day.hasVolume ? 1 : 0), 0) * 12.4;
 
     return (
@@ -122,7 +123,7 @@ function CalendarPageContent() {
                     </div>
                     <p className="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant">
                         Consistency: {Math.round((activeDays / currentMonthDays.length) * 100)}% •{' '}
-                        {calendar.days.reduce((sum, day) => sum + day.sessionCount, 0)} Sessions logged
+                        {loggedSessions} Sessions logged
                     </p>
                 </div>
 
