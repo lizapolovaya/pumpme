@@ -22,8 +22,7 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         const db = getSqliteRepositoryDatabase();
         const today = toIsoDate(new Date());
         ensureScaffoldForDate(db, userId, today);
-        const rangeDays = this.parseRangeDays(range);
-        const rangeStart = this.getRangeStart(today, rangeDays);
+        const rangeStart = this.getRangeStart(today, range);
 
         const volumeTrend = this.getVolumeTrend(db, userId, rangeStart);
         const oneRmTrend = this.getOneRmTrend(db, userId, rangeStart);
@@ -159,7 +158,14 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         return days;
     }
 
-    private getRangeStart(today: string, rangeDays: number): string {
+    private getRangeStart(today: string, range: string): string {
+        if (range.trim().toLowerCase() === 'mtd') {
+            const date = new Date(`${today}T00:00:00.000Z`);
+            date.setUTCDate(1);
+            return toIsoDate(date);
+        }
+
+        const rangeDays = this.parseRangeDays(range);
         const date = new Date(`${today}T00:00:00.000Z`);
         date.setUTCDate(date.getUTCDate() - Math.max(0, rangeDays - 1));
         return toIsoDate(date);

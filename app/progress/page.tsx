@@ -93,8 +93,16 @@ function getRecoveryStatus(recoveryScore: number): string {
     return recoveryScore >= 85 ? 'High Readiness' : 'Monitor Recovery';
 }
 
+function getCurrentMonthLabel(): string {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        timeZone: 'UTC',
+        year: 'numeric'
+    }).format(new Date());
+}
+
 export default function ProgressPage() {
-    const { data: summary, error, isLoading } = useQuery(progressQueryOptions('30d'));
+    const { data: summary, error, isLoading } = useQuery(progressQueryOptions('mtd'));
 
     if (isLoading || !summary) {
         return <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">Loading progress...</main>;
@@ -122,6 +130,7 @@ export default function ProgressPage() {
     const rpeStatus = getRpeStatus(averageRpe);
     const recoveryScore = summary.recoveryScore;
     const recoveryStatus = getRecoveryStatus(recoveryScore);
+    const currentMonthLabel = getCurrentMonthLabel();
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -137,7 +146,7 @@ export default function ProgressPage() {
                 <div className="scrollbar-hidden flex items-center gap-3 overflow-x-auto pb-2">
                     <div className="flex items-center gap-2 rounded-full border border-outline-variant/10 bg-surface-container-high px-4 py-2 font-label text-xs uppercase tracking-[0.14em] text-on-surface-variant">
                         <Clock3 className="h-3.5 w-3.5" strokeWidth={2.1} />
-                        Last 30 Days
+                        {currentMonthLabel}
                     </div>
                     <div className="rounded-full bg-primary-container px-4 py-2 font-label text-xs font-bold uppercase tracking-[0.14em] text-on-primary-fixed shadow-lg shadow-primary-container/10">
                         Export PDF

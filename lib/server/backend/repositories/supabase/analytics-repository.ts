@@ -45,6 +45,20 @@ function getRangeStart(today: string, rangeDays: number): string {
     return toIsoDate(date);
 }
 
+function getMonthToDateStart(today: string): string {
+    const date = new Date(`${today}T00:00:00.000Z`);
+    date.setUTCDate(1);
+    return toIsoDate(date);
+}
+
+function resolveRangeStart(today: string, range: string): string {
+    if (range.trim().toLowerCase() === 'mtd') {
+        return getMonthToDateStart(today);
+    }
+
+    return getRangeStart(today, parseRangeDays(range));
+}
+
 function formatMonthLabel(monthValue: string): string {
     const [year, month] = monthValue.split('-').map((value) => Number.parseInt(value, 10));
 
@@ -81,8 +95,7 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         const today = toIsoDate(new Date());
         await ensureScaffoldForDate(this.client, userId, today);
 
-        const rangeDays = parseRangeDays(range);
-        const rangeStart = getRangeStart(today, rangeDays);
+        const rangeStart = resolveRangeStart(today, range);
 
         const sessionsResult = await this.client
             .from('workout_sessions')

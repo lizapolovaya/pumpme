@@ -208,6 +208,47 @@ test('analytics repository returns average RPE as a first-class progress metric'
     assert.equal(summary.logs.some((log) => log.title === 'Recovery Score'), false);
 });
 
+test('analytics repository month-to-date RPE excludes prior-month sessions', async () => {
+    const repositories = createSqliteRepositories();
+    const today = new Date();
+    const currentMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), Math.max(2, today.getUTCDate())));
+    const previousMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
+
+    const createCompletedSessionWithRpe = async (date: string, rpe: number) => {
+        const session = await repositories.workouts.startSession('local-user', {
+            date,
+            title: `RPE ${rpe} Session`,
+            focus: 'Upper body'
+        });
+        const withExercise = await repositories.workouts.addExercise('local-user', session.id, {
+            exerciseId: 'exercise-bench-press',
+            exerciseName: 'Bench Press'
+        });
+        const exercise = withExercise.exercises[0];
+        assert.ok(exercise);
+
+        const withSet = await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+            weightKg: 60,
+            reps: 5,
+            rpe
+        });
+        const set = withSet.exercises[0]?.sets[0];
+        assert.ok(set);
+
+        await repositories.workouts.updateSet('local-user', session.id, set!.id, {
+            completed: true
+        });
+        await repositories.workouts.finishSession('local-user', session.id);
+    };
+
+    await createCompletedSessionWithRpe(previousMonthDate.toISOString().slice(0, 10), 10);
+    await createCompletedSessionWithRpe(currentMonthDate.toISOString().slice(0, 10), 8);
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', 'mtd');
+
+    assert.equal(summary.averageRpe, 8);
+});
+
 test('analytics repository returns recovery score as a first-class progress metric', async () => {
     const repositories = createSqliteRepositories();
 
