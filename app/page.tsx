@@ -52,8 +52,8 @@ function getDisciplineHeight(sessionCount: number, completed: boolean): string {
     return 'h-6';
 }
 
-function getWeeklyStreakValue(weeklyDiscipline: Array<{ completedSessionCount: number }>): number {
-    return weeklyDiscipline.reduce((sum, day) => sum + day.completedSessionCount, 0);
+function getWeeklyStreakValue(weeklyDiscipline: Array<{ sessionCount: number }>): number {
+    return weeklyDiscipline.reduce((sum, day) => sum + (day.sessionCount > 0 ? 1 : 0), 0);
 }
 
 function toTitleCase(value: string): string {

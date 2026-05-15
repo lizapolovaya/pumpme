@@ -184,7 +184,7 @@ test('default today session is empty when no workout input exists yet', async ()
     assert.deepEqual(session?.exercises, []);
 });
 
-test('dashboard weekly discipline counts completed sessions across the current week', async () => {
+test('dashboard weekly discipline counts workout days across the current week', async () => {
     const repositories = createSqliteRepositories();
     const today = new Date();
     const dayOffset = today.getUTCDay() === 0 ? 6 : today.getUTCDay() - 1;
@@ -207,10 +207,10 @@ test('dashboard weekly discipline counts completed sessions across the current w
     await createCompletedSession(tuesdayIso, 'Week Session B');
 
     const weeklyDiscipline = await repositories.dashboard.getWeeklyDiscipline('local-user', today.toISOString().slice(0, 10));
-    const completedSessions = weeklyDiscipline.reduce((sum, day) => sum + day.completedSessionCount, 0);
+    const activeWorkoutDays = weeklyDiscipline.reduce((sum, day) => sum + (day.sessionCount > 0 ? 1 : 0), 0);
 
     assert.equal(weeklyDiscipline.length, 7);
-    assert.equal(completedSessions, 2);
+    assert.equal(activeWorkoutDays, 2);
 });
 
 test('analytics repository returns average RPE as a first-class progress metric', async () => {
