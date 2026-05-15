@@ -88,7 +88,6 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
             .from('workout_sessions')
             .select('id,date,total_volume_kg')
             .eq('user_id', userId)
-            .eq('status', 'completed')
             .gte('date', sessionFetchStart);
         const sessions = requireSupabaseOk(sessionsResult as any, 'Unable to load progress sessions') as CompletedSessionRow[];
 
