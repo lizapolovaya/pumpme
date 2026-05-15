@@ -1,5 +1,5 @@
 import type { AnalyticsRepository } from '../contracts';
-import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto } from '../../types';
+import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto, ProgressVolumeWeekDto } from '../../types';
 import { ensureScaffoldForDate, getSqliteRepositoryDatabase, toIsoDate } from './shared';
 import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart, type WeeklyVolumeSession } from '../volume-trend';
 
@@ -39,7 +39,7 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
         today: Date
-    ): ProgressPointDto[] {
+    ): ProgressVolumeWeekDto[] {
         const windowStart = getVolumeTrendWindowStart(today);
         const sessions = db
             .prepare(`

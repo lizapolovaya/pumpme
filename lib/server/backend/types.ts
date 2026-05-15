@@ -157,6 +157,14 @@ export type ProgressPointDto = {
     value: number;
 };
 
+export type ProgressVolumeWeekDto = {
+    isCurrentWeek: boolean;
+    label: string;
+    value: number;
+    weekEnd: string;
+    weekStart: string;
+};
+
 export type ProgressLogDto = {
     title: string;
     subtitle: string;
@@ -177,7 +185,7 @@ export type ProgressMetricsSummaryDto = {
     range: string;
     averageRpe: number;
     recoveryScore: number;
-    volumeTrend: ProgressPointDto[];
+    volumeTrend: ProgressVolumeWeekDto[];
     oneRmTrend: ProgressPointDto[];
     logs: ProgressLogDto[];
 };

@@ -23,6 +23,18 @@ function getIsoDateWeeksAgo(weeksAgo: number): string {
     return getIsoDateDaysAgo(weeksAgo * 7);
 }
 
+function getUtcWeekStart(date: Date): Date {
+    const normalized = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const day = normalized.getUTCDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    normalized.setUTCDate(normalized.getUTCDate() + diffToMonday);
+    return normalized;
+}
+
+function toIsoDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
 beforeEach(() => {
     closeDatabase();
     setTestDatabase();
@@ -262,6 +274,7 @@ test('analytics repository month-to-date RPE excludes prior-month sessions', asy
 
 test('analytics repository returns fixed weekly volume buckets with current week as W8', async () => {
     const repositories = createSqliteRepositories();
+    const currentWeekStart = getUtcWeekStart(new Date());
 
     const createCompletedSessionWithVolume = async (date: string, weightKg: number, reps: number) => {
         const session = await repositories.workouts.startSession('local-user', {
@@ -295,18 +308,29 @@ test('analytics repository returns fixed weekly volume buckets with current week
 
     const summary = await repositories.analytics.getProgressSummary('local-user', 'mtd');
 
+    const expectedWeeks = Array.from({ length: 8 }, (_, index) => {
+        const weekStart = new Date(currentWeekStart);
+        weekStart.setUTCDate(currentWeekStart.getUTCDate() - (7 - index) * 7);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+
+        return {
+            isCurrentWeek: index === 7,
+            label: `W${index + 1}`,
+            value: 0,
+            weekEnd: toIsoDate(weekEnd),
+            weekStart: toIsoDate(weekStart)
+        };
+    });
+
+    expectedWeeks[4]!.value = 500;
+    expectedWeeks[6]!.value = 80 * 4;
+    expectedWeeks[7]!.value = 60 * 3;
+
     assert.deepEqual(
         summary.volumeTrend,
-        [
-            { label: 'W1', value: 0 },
-            { label: 'W2', value: 0 },
-            { label: 'W3', value: 0 },
-            { label: 'W4', value: 0 },
-            { label: 'W5', value: 500 },
-            { label: 'W6', value: 0 },
-            { label: 'W7', value: 80 * 4 },
-            { label: 'W8', value: 60 * 3 }
-        ]
+        expectedWeeks
     );
 });
 

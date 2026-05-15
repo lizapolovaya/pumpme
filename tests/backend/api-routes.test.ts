@@ -9,11 +9,15 @@ import * as calendarRoute from '../../app/api/calendar/month/route';
 import * as nutritionRoute from '../../app/api/nutrition/today/route';
 import * as profileRoute from '../../app/api/profile/route';
 import * as preferencesRoute from '../../app/api/preferences/route';
+import * as progressRoute from '../../app/api/progress/summary/route';
 import * as sessionsRoute from '../../app/api/workouts/sessions/route';
 import * as sessionExercisesRoute from '../../app/api/workouts/sessions/[sessionId]/exercises/route';
 import * as finishRoute from '../../app/api/workouts/sessions/[sessionId]/finish/route';
+import * as sessionSetsRoute from '../../app/api/workouts/sessions/[sessionId]/sets/route';
 
 let tempDir = '';
+const originalOpenAiApiKey = process.env.OPENAI_API_KEY;
+const originalOpenAiBaseUrl = process.env.OPENAI_BASE_URL;
 
 function setTestDatabase() {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pumpme-backend-api-'));
@@ -34,6 +38,8 @@ beforeEach(() => {
     closeDatabase();
     setTestDatabase();
     process.env.PUMPME_STORAGE_DRIVER = 'sqlite';
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
 });
 
 afterEach(() => {
@@ -44,6 +50,16 @@ afterEach(() => {
     }
     delete process.env.PUMPME_SQLITE_PATH;
     delete process.env.PUMPME_STORAGE_DRIVER;
+    if (originalOpenAiApiKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+    } else {
+        process.env.OPENAI_API_KEY = originalOpenAiApiKey;
+    }
+    if (originalOpenAiBaseUrl === undefined) {
+        delete process.env.OPENAI_BASE_URL;
+    } else {
+        process.env.OPENAI_BASE_URL = originalOpenAiBaseUrl;
+    }
 });
 
 test('profile and preferences routes read and update backend state', async () => {
@@ -168,4 +184,63 @@ test('calendar route returns selected day session details', async () => {
     const calendar = await calendarResponse.json();
     assert.equal(calendar.selectedDay.date, '2026-04-09');
     assert.equal(calendar.selectedDay.sessions[0].id, session.id);
+});
+
+test('progress route returns heuristic coach copy when OpenAI is not configured', async () => {
+    const sessionResponse = await sessionsRoute.POST(
+        jsonRequest('http://localhost/api/workouts/sessions', 'POST', {
+            date: '2026-04-09',
+            title: 'Pull Day',
+            focus: 'Back'
+        })
+    );
+    assert.equal(sessionResponse.status, 201);
+    const session = await sessionResponse.json();
+
+    const addExerciseResponse = await sessionExercisesRoute.POST(
+        jsonRequest(`http://localhost/api/workouts/sessions/${session.id}/exercises`, 'POST', {
+            exerciseId: 'exercise-row',
+            exerciseName: 'Chest Supported Row'
+        }),
+        {
+            params: Promise.resolve({ sessionId: session.id })
+        }
+    );
+    assert.equal(addExerciseResponse.status, 201);
+    const sessionWithExercise = await addExerciseResponse.json();
+    const exerciseRowId = sessionWithExercise.exercises[0]?.id;
+    assert.ok(exerciseRowId);
+
+    const addSetResponse = await sessionSetsRoute.POST(
+        jsonRequest(`http://localhost/api/workouts/sessions/${session.id}/sets`, 'POST', {
+            exerciseRowId,
+            reps: 10,
+            rpe: 8,
+            weightKg: 70
+        }),
+        {
+            params: Promise.resolve({ sessionId: session.id })
+        }
+    );
+    assert.equal(addSetResponse.status, 201);
+
+    const finishResponse = await finishRoute.POST(new Request('http://localhost/api/workouts/sessions/finish', { method: 'POST' }), {
+        params: Promise.resolve({ sessionId: session.id })
+    });
+    assert.equal(finishResponse.status, 200);
+
+    const progressResponse = await progressRoute.GET(new Request('http://localhost/api/progress/summary?range=30d'));
+    assert.equal(progressResponse.status, 200);
+    const summary = await progressResponse.json();
+
+    assert.equal(summary.coach.source, 'heuristic');
+    assert.equal(summary.coach.model, null);
+    assert.equal(typeof summary.coach.headline, 'string');
+    assert.equal(typeof summary.coach.summary, 'string');
+    assert.ok(summary.coach.headline.length > 0);
+    assert.ok(summary.coach.summary.includes('estimated 1RM'));
+    assert.equal(summary.volumeTrend.length, 8);
+    assert.equal(summary.volumeTrend[7]?.isCurrentWeek, true);
+    assert.equal(typeof summary.volumeTrend[7]?.weekStart, 'string');
+    assert.equal(typeof summary.volumeTrend[7]?.weekEnd, 'string');
 });

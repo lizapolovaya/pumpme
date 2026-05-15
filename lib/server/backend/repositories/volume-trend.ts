@@ -1,4 +1,4 @@
-import type { ProgressPointDto } from '../types';
+import type { ProgressVolumeWeekDto } from '../types';
 
 export const VOLUME_TREND_WEEKS = 8;
 
@@ -19,18 +19,33 @@ function parseIsoDate(dateString: string): Date {
     return new Date(`${dateString}T00:00:00.000Z`);
 }
 
+function toIsoDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
 export function getVolumeTrendWindowStart(today: Date): string {
     const currentWeekStart = getUtcWeekStart(today);
     currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() - (VOLUME_TREND_WEEKS - 1) * 7);
-    return currentWeekStart.toISOString().slice(0, 10);
+    return toIsoDate(currentWeekStart);
 }
 
-export function buildWeeklyVolumeTrend(sessions: WeeklyVolumeSession[], today: Date): ProgressPointDto[] {
+export function buildWeeklyVolumeTrend(sessions: WeeklyVolumeSession[], today: Date): ProgressVolumeWeekDto[] {
     const currentWeekStart = getUtcWeekStart(today);
-    const buckets = Array.from({ length: VOLUME_TREND_WEEKS }, (_, index) => ({
-        label: `W${index + 1}`,
-        value: 0
-    }));
+    const buckets = Array.from({ length: VOLUME_TREND_WEEKS }, (_, index) => {
+        const weekStart = new Date(currentWeekStart);
+        weekStart.setUTCDate(currentWeekStart.getUTCDate() - (VOLUME_TREND_WEEKS - 1 - index) * 7);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+
+        return {
+            isCurrentWeek: index === VOLUME_TREND_WEEKS - 1,
+            label: `W${index + 1}`,
+            value: 0,
+            weekEnd: toIsoDate(weekEnd),
+            weekStart: toIsoDate(weekStart)
+        };
+    });
 
     for (const session of sessions) {
         const sessionWeekStart = getUtcWeekStart(parseIsoDate(session.date));

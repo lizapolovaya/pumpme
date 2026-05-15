@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AnalyticsRepository } from '../contracts';
-import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto } from '../../types';
+import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto, ProgressVolumeWeekDto } from '../../types';
 import { ensureScaffoldForDate, toIsoDate } from './shared';
 import { requireSupabaseOk } from './client';
 import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart } from '../volume-trend';
@@ -108,7 +108,7 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         };
     }
 
-    private computeVolumeTrend(sessions: CompletedSessionRow[], today: Date): ProgressPointDto[] {
+    private computeVolumeTrend(sessions: CompletedSessionRow[], today: Date): ProgressVolumeWeekDto[] {
         return buildWeeklyVolumeTrend(
             sessions.map((session) => ({
                 date: session.date,

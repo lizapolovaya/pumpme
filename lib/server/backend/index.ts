@@ -1,5 +1,5 @@
 export { getBackendConfig } from './config';
-export type { BackendConfig, BackendStorageDriver, SupabaseConfig } from './config';
+export type { BackendConfig, BackendStorageDriver, OpenAiConfig, SupabaseConfig } from './config';
 export { AuthenticationError, DEFAULT_LOCAL_USER_ID, resolveCurrentUserContext } from './context';
 export { closeDatabase, getDatabase, getSqlitePath, SQLITE_MIGRATIONS } from './db';
 export type { BackendRepositories } from './repositories/contracts';
@@ -16,6 +16,8 @@ export type {
     CalendarMonthDto,
     NutritionDayDto,
     PreferencesDto,
+    ProgressMetricsSummaryDto,
+    ProgressVolumeWeekDto,
     ProfileDto,
     ProgressSummaryDto,
     ReadinessDayDto,

@@ -1,9 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight } from 'lucide-react';
 import { progressQueryOptions } from '../../lib/client/app-query';
-import type { ProgressPointDto } from '../../lib/server/backend/types';
+import type { ProgressPointDto, ProgressVolumeWeekDto } from '../../lib/server/backend/types';
 
 type ChartPoint = {
     x: number;
@@ -52,39 +53,6 @@ function getVolumeDelta(currentValue: number, previousValue: number): string {
     return `${prefix}${delta.toFixed(1)}% vs Prev Week`;
 }
 
-function getCoachSummary(volumeTrend: ProgressPointDto[], oneRmTrend: ProgressPointDto[], recoveryScore: number): string {
-    const latestVolume = volumeTrend.at(-1)?.value ?? 0;
-    const previousVolume = volumeTrend.at(-2)?.value ?? 0;
-    const volumeDelta = previousVolume > 0 ? Math.round(((latestVolume - previousVolume) / previousVolume) * 100) : 0;
-    const peakOneRm = oneRmTrend.at(-1)?.value ?? oneRmTrend[0]?.value ?? 0;
-    const recoveryStatus = recoveryScore >= 85 ? 'High Readiness' : 'Monitor Recovery';
-
-    if (latestVolume > previousVolume) {
-        return `Weekly volume is up ${volumeDelta}% and your estimated 1RM is now tracking at ${peakOneRm} kg. ${recoveryStatus}, so you can keep progressive overload on the next main lift.`;
-    }
-
-    if (latestVolume < previousVolume) {
-        return `Volume dipped this window while estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so prioritize cleaner top sets before adding load again.`;
-    }
-
-    return `Training output is stable and your estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so keep intensity steady and look for better execution on primary sets.`;
-}
-
-function getCoachHeadline(volumeTrend: ProgressPointDto[]): string {
-    const latestVolume = volumeTrend.at(-1)?.value ?? 0;
-    const previousVolume = volumeTrend.at(-2)?.value ?? 0;
-
-    if (latestVolume > previousVolume) {
-        return 'Momentum is building.';
-    }
-
-    if (latestVolume < previousVolume) {
-        return 'Progress is flattening.';
-    }
-
-    return 'Output is holding steady.';
-}
-
 function getRpeStatus(averageRpe: number): string {
     return averageRpe >= 8 ? 'Optimal Range' : 'Build Intensity';
 }
@@ -101,8 +69,33 @@ function getCurrentMonthLabel(): string {
     }).format(new Date());
 }
 
+function formatVolume(value: number): string {
+    return `${value.toLocaleString('en-US')} KG`;
+}
+
+function formatWeekRange(weekStart: string, weekEnd: string): string {
+    const start = new Date(`${weekStart}T00:00:00.000Z`);
+    const end = new Date(`${weekEnd}T00:00:00.000Z`);
+    const startMonth = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(start);
+    const endMonth = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' }).format(end);
+    const startDay = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' }).format(start);
+    const endDay = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' }).format(end);
+
+    if (startMonth === endMonth) {
+        return `${startMonth} ${startDay} - ${endDay}`;
+    }
+
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+}
+
+function getBarDetailLeft(index: number, total: number): string {
+    const percentage = ((index + 0.5) / total) * 100;
+    return `${Math.max(10, Math.min(90, percentage))}%`;
+}
+
 export default function ProgressPage() {
     const { data: summary, error, isLoading } = useQuery(progressQueryOptions('mtd'));
+    const [selectedVolumeLabel, setSelectedVolumeLabel] = useState<string | null>(null);
 
     if (isLoading || !summary) {
         return <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">Loading progress...</main>;
@@ -121,16 +114,19 @@ export default function ProgressPage() {
     const linePoints = buildLineChartPoints(oneRmStats);
     const linePath = buildLinePath(linePoints);
     const volumeMax = Math.max(...volumeBars.map((bar) => bar.value), 1);
-    const latestVolume = volumeBars.at(-1)?.value ?? 0;
-    const previousVolume = volumeBars.at(-2)?.value ?? 0;
+    const defaultVolumeBar = volumeBars.find((bar) => bar.isCurrentWeek) ?? volumeBars.at(-1) ?? null;
+    const activeVolumeBar = volumeBars.find((bar) => bar.label === selectedVolumeLabel) ?? defaultVolumeBar;
+    const activeVolumeIndex = activeVolumeBar ? volumeBars.findIndex((bar) => bar.label === activeVolumeBar.label) : -1;
+    const previousVolume = activeVolumeIndex > 0 ? volumeBars[activeVolumeIndex - 1]?.value ?? 0 : 0;
     const currentPeak = oneRmStats.at(-1)?.value ?? 0;
-    const coachHeadline = getCoachHeadline(volumeBars);
-    const coachSummary = getCoachSummary(volumeBars, oneRmStats, summary.recoveryScore);
+    const coachHeadline = summary.coach.headline;
+    const coachSummary = summary.coach.summary;
     const averageRpe = summary.averageRpe;
     const rpeStatus = getRpeStatus(averageRpe);
     const recoveryScore = summary.recoveryScore;
     const recoveryStatus = getRecoveryStatus(recoveryScore);
     const currentMonthLabel = getCurrentMonthLabel();
+    const activeWeekDescriptor = activeVolumeBar?.isCurrentWeek ? 'the current week' : activeVolumeBar?.label ?? 'this week';
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -168,8 +164,8 @@ export default function ProgressPage() {
                         </div>
                         <p className="mb-4 max-w-lg font-headline text-xl font-bold leading-tight">
                             {coachHeadline}{' '}
-                            <span className="text-primary-dim">{latestVolume.toLocaleString('en-US')} kg</span> logged in the
-                            latest week.
+                            <span className="text-primary-dim">{activeVolumeBar?.value.toLocaleString('en-US') ?? 0} kg</span> logged during{' '}
+                            {activeWeekDescriptor}.
                         </p>
                         <p className="max-w-lg text-sm leading-relaxed text-on-surface-variant">
                             {coachSummary}
@@ -253,33 +249,60 @@ export default function ProgressPage() {
                         </div>
                         <div className="text-right">
                             <p className="font-headline text-2xl font-black text-primary-dim">
-                                {latestVolume.toLocaleString('en-US')}
+                                {activeVolumeBar?.value.toLocaleString('en-US') ?? 0}
                             </p>
                             <p className="font-label text-[10px] font-bold uppercase text-secondary">
-                                {getVolumeDelta(latestVolume, previousVolume)}
+                                {getVolumeDelta(activeVolumeBar?.value ?? 0, previousVolume)}
                             </p>
                         </div>
                     </div>
-                    <div className="relative flex h-48 flex-1 items-end justify-between gap-2">
+                    <div
+                        className="relative flex h-48 flex-1 items-end justify-between gap-2"
+                        onMouseLeave={() => setSelectedVolumeLabel(defaultVolumeBar?.label ?? null)}
+                    >
                         <div className="absolute inset-0 flex items-end opacity-20">
                             <div className="absolute bottom-0 h-px w-full bg-outline-variant" />
                             <div className="absolute bottom-1/3 h-px w-full bg-outline-variant" />
                             <div className="absolute bottom-2/3 h-px w-full bg-outline-variant" />
                         </div>
+                        {activeVolumeBar ? (
+                            <div
+                                className="pointer-events-none absolute top-0 z-20 w-36 -translate-x-1/2 rounded-xl border border-primary-dim/20 bg-surface-container-high px-3 py-2 text-left shadow-xl shadow-black/20"
+                                data-testid="volume-trend-tooltip"
+                                style={{ left: getBarDetailLeft(activeVolumeIndex, volumeBars.length) }}
+                            >
+                                <p className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
+                                    {activeVolumeBar.label}
+                                </p>
+                                <p className="mt-1 font-headline text-sm font-bold text-on-surface">
+                                    {formatVolume(activeVolumeBar.value)}
+                                </p>
+                                <p className="mt-1 text-[11px] text-on-surface-variant">
+                                    {formatWeekRange(activeVolumeBar.weekStart, activeVolumeBar.weekEnd)}
+                                </p>
+                            </div>
+                        ) : null}
                         {volumeBars.map((bar, index) => {
-                            const isActive = index === volumeBars.length - 1;
+                            const isActive = bar.label === activeVolumeBar?.label;
                             const isRecent = index >= volumeBars.length - 3;
 
                             return (
-                                <div
-                                    key={bar.label}
-                                    className={`relative flex-1 rounded-t-sm bg-surface-container-highest h-full ${
+                                <button
+                                    aria-label={`${bar.label} ${formatWeekRange(bar.weekStart, bar.weekEnd)} ${formatVolume(bar.value)}`}
+                                    aria-pressed={isActive}
+                                    className={`relative h-full flex-1 cursor-pointer appearance-none rounded-t-sm border-0 bg-surface-container-highest p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-dim ${
                                         isRecent ? 'border-x border-primary-dim/10' : ''
                                     } ${
                                         isActive
                                             ? 'border-x border-primary-dim/30 bg-primary-container/20 shadow-[0_0_20px_rgba(209,255,38,0.15)]'
                                             : ''
                                     }`}
+                                    data-testid={`volume-bar-${bar.label}`}
+                                    key={bar.label}
+                                    onClick={() => setSelectedVolumeLabel(bar.label)}
+                                    onFocus={() => setSelectedVolumeLabel(bar.label)}
+                                    onMouseEnter={() => setSelectedVolumeLabel(bar.label)}
+                                    type="button"
                                 >
                                     <div
                                         className={`absolute bottom-0 w-full rounded-t-sm ${
@@ -287,7 +310,7 @@ export default function ProgressPage() {
                                         }`}
                                         style={{ height: getVolumeBarFill(bar.value, volumeMax) }}
                                     />
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
@@ -296,7 +319,11 @@ export default function ProgressPage() {
                             <span
                                 key={bar.label}
                                 className={`font-label text-[10px] ${
-                                    index === volumeBars.length - 1 ? 'font-bold text-primary-dim' : 'text-on-surface-variant'
+                                    bar.label === activeVolumeBar?.label
+                                        ? 'font-bold text-primary-dim'
+                                        : bar.isCurrentWeek
+                                          ? 'font-bold text-primary-dim'
+                                          : 'text-on-surface-variant'
                                 }`}
                             >
                                 {bar.label}
