@@ -123,9 +123,9 @@ function buildNextLoadTargets(currentEstimatedOneRmKg: number): Array<{ label: s
     }
 
     return [
-        { label: 'Base', percent: 80, value: roundToNearest(currentEstimatedOneRmKg * 0.8, 2.5) },
-        { label: 'Build', percent: 85, value: roundToNearest(currentEstimatedOneRmKg * 0.85, 2.5) },
-        { label: 'Stretch', percent: 90, value: roundToNearest(currentEstimatedOneRmKg * 0.9, 2.5) }
+        { label: 'Light', percent: 80, value: roundToNearest(currentEstimatedOneRmKg * 0.8, 2.5) },
+        { label: 'Moderate', percent: 85, value: roundToNearest(currentEstimatedOneRmKg * 0.85, 2.5) },
+        { label: 'Heavy', percent: 90, value: roundToNearest(currentEstimatedOneRmKg * 0.9, 2.5) }
     ];
 }
 

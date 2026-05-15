@@ -170,9 +170,9 @@ test('renders the major analytics widgets from seeded workout data', async ({ pa
 
     await page.getByTestId('estimated-1rm-select').selectOption('exercise-progress-bench');
     await expect(page.getByTestId('estimated-1rm-current')).toHaveText('117 KG');
-    await expect(page.getByTestId('estimated-1rm-target-base')).toBeVisible();
-    await expect(page.getByTestId('estimated-1rm-target-build')).toBeVisible();
-    await expect(page.getByTestId('estimated-1rm-target-stretch')).toBeVisible();
+    await expect(page.getByTestId('estimated-1rm-target-light')).toBeVisible();
+    await expect(page.getByTestId('estimated-1rm-target-moderate')).toBeVisible();
+    await expect(page.getByTestId('estimated-1rm-target-heavy')).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId('volume-bar-W7').click();
