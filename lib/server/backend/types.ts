@@ -164,13 +164,26 @@ export type ProgressLogDto = {
     status: string;
 };
 
-export type ProgressSummaryDto = {
+export type ProgressCoachSource = 'heuristic' | 'openai';
+
+export type ProgressCoachDto = {
+    headline: string;
+    summary: string;
+    source: ProgressCoachSource;
+    model: string | null;
+};
+
+export type ProgressMetricsSummaryDto = {
     range: string;
     averageRpe: number;
     recoveryScore: number;
     volumeTrend: ProgressPointDto[];
     oneRmTrend: ProgressPointDto[];
     logs: ProgressLogDto[];
+};
+
+export type ProgressSummaryDto = ProgressMetricsSummaryDto & {
+    coach: ProgressCoachDto;
 };
 
 export type BootstrapResponse = {

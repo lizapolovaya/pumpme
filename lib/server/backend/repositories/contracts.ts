@@ -7,8 +7,8 @@ import type {
     NutritionDayDto,
     PlannedWorkoutSummaryDto,
     PreferencesDto,
+    ProgressMetricsSummaryDto,
     ProfileDto,
-    ProgressSummaryDto,
     ReadinessDayDto,
     StartWorkoutSessionInput,
     TodayDashboardDto,
@@ -88,7 +88,7 @@ export interface CalendarRepository {
 }
 
 export interface AnalyticsRepository {
-    getProgressSummary(userId: string, range: string): Promise<ProgressSummaryDto>;
+    getProgressSummary(userId: string, range: string): Promise<ProgressMetricsSummaryDto>;
 }
 
 export interface BackendRepositories {
