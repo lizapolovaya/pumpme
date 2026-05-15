@@ -6,10 +6,16 @@ export type SupabaseConfig = {
     serviceRoleKey: string | null;
 };
 
+export type OpenAiConfig = {
+    apiKey: string | null;
+    baseUrl: string;
+};
+
 export type BackendConfig = {
     storageDriver: BackendStorageDriver;
     sqlitePath: string | null;
     supabase: SupabaseConfig;
+    openAi: OpenAiConfig;
 };
 
 export function getBackendConfig(): BackendConfig {
@@ -22,6 +28,10 @@ export function getBackendConfig(): BackendConfig {
             url: process.env.PUMPME_SUPABASE_URL ?? null,
             anonKey: process.env.PUMPME_SUPABASE_ANON_KEY ?? null,
             serviceRoleKey: process.env.PUMPME_SUPABASE_SERVICE_ROLE_KEY ?? null
+        },
+        openAi: {
+            apiKey: process.env.OPENAI_API_KEY ?? null,
+            baseUrl: process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com/v1'
         }
     };
 }

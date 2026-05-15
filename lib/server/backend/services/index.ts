@@ -39,6 +39,6 @@ export function createBackendServices(userId: string): BackendServices {
         nutrition: new DefaultNutritionService(userId, repositories.nutrition),
         activity: new DefaultActivityService(userId, repositories.activity),
         readiness: new DefaultReadinessService(userId, repositories.readiness),
-        analytics: new DefaultAnalyticsService(userId, repositories.analytics)
+        analytics: new DefaultAnalyticsService(userId, repositories.analytics, config.openAi)
     };
 }
