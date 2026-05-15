@@ -272,6 +272,53 @@ test('analytics repository month-to-date RPE excludes prior-month sessions', asy
     assert.equal(summary.averageRpe, 8);
 });
 
+test('analytics repository returns lift-specific 1RM summaries with the most recent lift selected', async () => {
+    const repositories = createSqliteRepositories();
+
+    const createCompletedSessionWithOneRm = async (
+        date: string,
+        exerciseId: string,
+        exerciseName: string,
+        weightKg: number,
+        reps: number
+    ) => {
+        const session = await repositories.workouts.startSession('local-user', {
+            date,
+            title: `${exerciseName} Session`,
+            focus: exerciseName
+        });
+        const withExercise = await repositories.workouts.addExercise('local-user', session.id, {
+            exerciseId,
+            exerciseName
+        });
+        const exercise = withExercise.exercises[0];
+        assert.ok(exercise);
+
+        const withSet = await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+            weightKg,
+            reps
+        });
+        const set = withSet.exercises[0]?.sets[0];
+        assert.ok(set);
+
+        await repositories.workouts.updateSet('local-user', session.id, set!.id, {
+            completed: true
+        });
+        await repositories.workouts.finishSession('local-user', session.id);
+    };
+
+    await createCompletedSessionWithOneRm(getIsoDateDaysAgo(9), 'exercise-bench-press', 'Bench Press', 100, 5);
+    await createCompletedSessionWithOneRm(getIsoDateDaysAgo(2), 'exercise-deadlift', 'Deadlift', 140, 3);
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', '30d');
+
+    assert.equal(summary.selectedLiftId, 'exercise-deadlift');
+    assert.equal(summary.liftSummaries.length, 2);
+    assert.equal(summary.liftSummaries[0]?.exerciseId, 'exercise-deadlift');
+    assert.equal(summary.oneRmTrend.at(-1)?.value, 154);
+    assert.equal(summary.liftSummaries.find((lift) => lift.exerciseId === 'exercise-bench-press')?.trend.at(-1)?.value, 117);
+});
+
 test('analytics repository returns fixed weekly volume buckets with current week as W8', async () => {
     const repositories = createSqliteRepositories();
     const currentWeekStart = getUtcWeekStart(new Date());

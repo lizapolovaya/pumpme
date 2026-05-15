@@ -2,11 +2,11 @@ import type { AnalyticsRepository } from '../contracts';
 import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto, ProgressVolumeWeekDto } from '../../types';
 import { ensureScaffoldForDate, getSqliteRepositoryDatabase, toIsoDate } from './shared';
 import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart, type WeeklyVolumeSession } from '../volume-trend';
-
-type OneRmRow = {
-    monthValue: string;
-    oneRmValue: number;
-};
+import {
+    buildLiftSummaries,
+    getLiftTrendWindowStart,
+    type LiftTrendSessionRow
+} from '../lift-trend';
 
 type LogSummaryRow = {
     averageRpe: number | null;
@@ -22,15 +22,17 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         const rangeStart = this.getRangeStart(today, range);
 
         const volumeTrend = this.getVolumeTrend(db, userId, now);
-        const oneRmTrend = this.getOneRmTrend(db, userId, rangeStart);
+        const { liftSummaries, oneRmTrend, selectedLiftId } = this.getLiftTrends(db, userId, now);
         const { averageRpe, logs, recoveryScore } = this.getLogs(db, userId, rangeStart);
 
         return {
             averageRpe,
+            liftSummaries,
+            oneRmTrend,
             range,
             recoveryScore,
+            selectedLiftId,
             volumeTrend,
-            oneRmTrend,
             logs
         };
     }
@@ -71,46 +73,34 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         return buildWeeklyVolumeTrend(sessions, today);
     }
 
-    private getOneRmTrend(
+    private getLiftTrends(
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
-        rangeStart: string
-    ): ProgressPointDto[] {
+        today: Date
+    ): { liftSummaries: ReturnType<typeof buildLiftSummaries>['liftSummaries']; oneRmTrend: ProgressPointDto[]; selectedLiftId: string | null } {
+        const windowStart = getLiftTrendWindowStart(today);
         const rows = db
             .prepare(`
                 SELECT
-                    strftime('%Y-%m', workout_sessions.date) AS monthValue,
+                    workout_session_exercises.exercise_id AS exerciseId,
+                    workout_session_exercises.exercise_name AS exerciseName,
+                    workout_sessions.date AS date,
                     MAX(workout_sets.weight_kg * (1 + (COALESCE(workout_sets.reps, 0) / 30.0))) AS oneRmValue
-                FROM workout_sets
+                FROM workout_sessions
                 INNER JOIN workout_session_exercises
-                    ON workout_session_exercises.id = workout_sets.session_exercise_id
-                INNER JOIN workout_sessions
                     ON workout_sessions.id = workout_session_exercises.session_id
+                INNER JOIN workout_sets
+                    ON workout_sets.session_exercise_id = workout_session_exercises.id
                 WHERE workout_sessions.user_id = ?
                   AND workout_sessions.date >= ?
-                  AND workout_sessions.status = 'completed'
-                  AND workout_sets.completed = 1
                   AND workout_sets.weight_kg IS NOT NULL
                   AND workout_sets.reps IS NOT NULL
-                GROUP BY strftime('%Y-%m', workout_sessions.date)
-                ORDER BY monthValue DESC
-                LIMIT 4
+                GROUP BY workout_session_exercises.exercise_id, workout_session_exercises.exercise_name, workout_sessions.date
+                ORDER BY workout_sessions.date ASC
             `)
-            .all(userId, rangeStart) as OneRmRow[];
+            .all(userId, windowStart) as LiftTrendSessionRow[];
 
-        if (!rows.length) {
-            return [
-                { label: 'Nov', value: 215 },
-                { label: 'Dec', value: 220 },
-                { label: 'Jan', value: 235 },
-                { label: 'Feb', value: 245 }
-            ];
-        }
-
-        return rows.reverse().map((row) => ({
-            label: this.formatMonthLabel(row.monthValue),
-            value: Math.round(row.oneRmValue)
-        }));
+        return buildLiftSummaries(rows);
     }
 
     private getLogs(
@@ -171,16 +161,4 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         return toIsoDate(date);
     }
 
-    private formatMonthLabel(monthValue: string): string {
-        const [year, month] = monthValue.split('-').map((value) => Number.parseInt(value, 10));
-
-        if (!year || !month) {
-            return 'N/A';
-        }
-
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            timeZone: 'UTC'
-        }).format(new Date(Date.UTC(year, month - 1, 1)));
-    }
 }

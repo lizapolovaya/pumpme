@@ -157,6 +157,15 @@ export type ProgressPointDto = {
     value: number;
 };
 
+export type ProgressLiftSummaryDto = {
+    currentEstimatedOneRmKg: number;
+    exerciseId: string;
+    exerciseName: string;
+    lastTrainedAt: string;
+    previousEstimatedOneRmKg: number;
+    trend: ProgressPointDto[];
+};
+
 export type ProgressVolumeWeekDto = {
     isCurrentWeek: boolean;
     label: string;
@@ -185,8 +194,10 @@ export type ProgressMetricsSummaryDto = {
     range: string;
     averageRpe: number;
     recoveryScore: number;
-    volumeTrend: ProgressVolumeWeekDto[];
+    liftSummaries: ProgressLiftSummaryDto[];
     oneRmTrend: ProgressPointDto[];
+    selectedLiftId: string | null;
+    volumeTrend: ProgressVolumeWeekDto[];
     logs: ProgressLogDto[];
 };
 

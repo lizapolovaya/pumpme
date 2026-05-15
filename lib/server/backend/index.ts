@@ -17,6 +17,7 @@ export type {
     NutritionDayDto,
     PreferencesDto,
     ProgressMetricsSummaryDto,
+    ProgressLiftSummaryDto,
     ProgressVolumeWeekDto,
     ProfileDto,
     ProgressSummaryDto,

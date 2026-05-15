@@ -238,7 +238,10 @@ test('progress route returns heuristic coach copy when OpenAI is not configured'
     assert.equal(typeof summary.coach.headline, 'string');
     assert.equal(typeof summary.coach.summary, 'string');
     assert.ok(summary.coach.headline.length > 0);
-    assert.ok(summary.coach.summary.includes('estimated 1RM'));
+    assert.ok(summary.coach.summary.includes('Chest Supported Row'));
+    assert.equal(summary.selectedLiftId, 'exercise-row');
+    assert.equal(summary.liftSummaries[0]?.exerciseId, 'exercise-row');
+    assert.equal(summary.oneRmTrend.at(-1)?.value, 93);
     assert.equal(summary.volumeTrend.length, 8);
     assert.equal(summary.volumeTrend[7]?.isCurrentWeek, true);
     assert.equal(typeof summary.volumeTrend[7]?.weekStart, 'string');

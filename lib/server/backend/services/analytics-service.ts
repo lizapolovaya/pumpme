@@ -1,7 +1,13 @@
 import type { AnalyticsService } from './contracts';
 import type { OpenAiConfig } from '../config';
 import type { AnalyticsRepository } from '../repositories/contracts';
-import type { ProgressCoachDto, ProgressMetricsSummaryDto, ProgressPointDto, ProgressSummaryDto } from '../types';
+import type {
+    ProgressCoachDto,
+    ProgressLiftSummaryDto,
+    ProgressMetricsSummaryDto,
+    ProgressPointDto,
+    ProgressSummaryDto
+} from '../types';
 
 const OPENAI_PROGRESS_COACH_MODEL = 'gpt-5.5';
 
@@ -16,45 +22,89 @@ type OpenAiResponsesApiResponse = {
     output_text?: string;
 };
 
-function getCoachHeadline(volumeTrend: ProgressPointDto[]): string {
+function roundToNearest(value: number, step: number): number {
+    return Math.round(value / step) * step;
+}
+
+function formatLoadTargets(currentEstimatedOneRmKg: number): string {
+    if (currentEstimatedOneRmKg <= 0) {
+        return 'no load targets yet';
+    }
+
+    const targets = [0.8, 0.85, 0.9].map((percent) => roundToNearest(currentEstimatedOneRmKg * percent, 2.5));
+    return targets
+        .map((target) => `${target % 1 === 0 ? target.toFixed(0) : target.toFixed(1)} kg`)
+        .join(', ');
+}
+
+function getSelectedLift(summary: ProgressMetricsSummaryDto): ProgressLiftSummaryDto | null {
+    if (!summary.liftSummaries.length) {
+        return null;
+    }
+
+    return (
+        summary.liftSummaries.find((lift) => lift.exerciseId === summary.selectedLiftId) ??
+        summary.liftSummaries[0] ??
+        null
+    );
+}
+
+function getCoachHeadline(volumeTrend: ProgressPointDto[], selectedLift: ProgressLiftSummaryDto | null): string {
     const latestVolume = volumeTrend.at(-1)?.value ?? 0;
     const previousVolume = volumeTrend.at(-2)?.value ?? 0;
+    const liftName = selectedLift?.exerciseName ?? 'Primary lift';
+
+    if (!selectedLift) {
+        return 'Strength trend is building.';
+    }
 
     if (latestVolume > previousVolume) {
-        return 'Momentum is building.';
+        return `${liftName} momentum is building.`;
     }
 
     if (latestVolume < previousVolume) {
-        return 'Progress is flattening.';
+        return `${liftName} progress is flattening.`;
     }
 
-    return 'Output is holding steady.';
+    return `${liftName} is holding steady.`;
 }
 
-function getCoachSummary(volumeTrend: ProgressPointDto[], oneRmTrend: ProgressPointDto[], recoveryScore: number): string {
+function getCoachSummary(
+    volumeTrend: ProgressPointDto[],
+    selectedLift: ProgressLiftSummaryDto | null,
+    recoveryScore: number
+): string {
     const latestVolume = volumeTrend.at(-1)?.value ?? 0;
     const previousVolume = volumeTrend.at(-2)?.value ?? 0;
     const volumeDelta = previousVolume > 0 ? Math.round(((latestVolume - previousVolume) / previousVolume) * 100) : 0;
-    const peakOneRm = oneRmTrend.at(-1)?.value ?? oneRmTrend[0]?.value ?? 0;
+    const peakOneRm = selectedLift?.currentEstimatedOneRmKg ?? 0;
+    const liftName = selectedLift?.exerciseName ?? 'Your main lift';
     const recoveryStatus = recoveryScore >= 85 ? 'High Readiness' : 'Monitor Recovery';
 
+    if (peakOneRm <= 0) {
+        return `${liftName} needs more logged sets before next-load targets can be shown.`;
+    }
+
+    const loadTargets = formatLoadTargets(peakOneRm);
+
     if (latestVolume > previousVolume) {
-        return `Weekly volume is up ${volumeDelta}% and your estimated 1RM is now tracking at ${peakOneRm} kg. ${recoveryStatus}, so you can keep progressive overload on the next main lift.`;
+        return `${liftName} is at ${peakOneRm} kg. Weekly volume is up ${volumeDelta}%, ${recoveryStatus}, and next load targets are ${loadTargets}.`;
     }
 
     if (latestVolume < previousVolume) {
-        return `Volume dipped this window while estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so prioritize cleaner top sets before adding load again.`;
+        return `${liftName} is holding near ${peakOneRm} kg. Volume dipped this window, ${recoveryStatus}, so keep the next work set in the ${loadTargets} range.`;
     }
 
-    return `Training output is stable and your estimated 1RM is holding near ${peakOneRm} kg. ${recoveryStatus}, so keep intensity steady and look for better execution on primary sets.`;
+    return `${liftName} is stable at ${peakOneRm} kg. ${recoveryStatus}, so hold intensity steady and aim for ${loadTargets} next session.`;
 }
 
 function buildHeuristicCoach(summary: ProgressMetricsSummaryDto): ProgressCoachDto {
+    const selectedLift = getSelectedLift(summary);
     return {
-        headline: getCoachHeadline(summary.volumeTrend),
+        headline: getCoachHeadline(summary.volumeTrend, selectedLift),
         model: null,
         source: 'heuristic',
-        summary: getCoachSummary(summary.volumeTrend, summary.oneRmTrend, summary.recoveryScore)
+        summary: getCoachSummary(summary.volumeTrend, selectedLift, summary.recoveryScore)
     };
 }
 
@@ -157,6 +207,7 @@ export class DefaultAnalyticsService implements AnalyticsService {
                                     type: 'input_text',
                                     text: JSON.stringify({
                                         averageRpe: summary.averageRpe,
+                                        selectedLift: summary.liftSummaries.find((lift) => lift.exerciseId === summary.selectedLiftId) ?? null,
                                         oneRmTrend: summary.oneRmTrend,
                                         range: summary.range,
                                         recoveryScore: summary.recoveryScore,

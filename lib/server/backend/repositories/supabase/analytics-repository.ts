@@ -4,6 +4,11 @@ import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto, Progr
 import { ensureScaffoldForDate, toIsoDate } from './shared';
 import { requireSupabaseOk } from './client';
 import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart } from '../volume-trend';
+import {
+    buildLiftSummaries,
+    getLiftTrendWindowStart,
+    type LiftTrendSessionRow
+} from '../lift-trend';
 
 type CompletedSessionRow = {
     id: string;
@@ -14,6 +19,8 @@ type CompletedSessionRow = {
 type SessionExerciseRow = {
     id: string;
     session_id: string;
+    exercise_id: string;
+    exercise_name: string;
 };
 
 type SetRow = {
@@ -82,7 +89,8 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
 
         const rangeStart = resolveRangeStart(today, range);
         const volumeTrendWindowStart = getVolumeTrendWindowStart(now);
-        const sessionFetchStart = rangeStart < volumeTrendWindowStart ? rangeStart : volumeTrendWindowStart;
+        const liftTrendWindowStart = getLiftTrendWindowStart(now);
+        const sessionFetchStart = [rangeStart, volumeTrendWindowStart, liftTrendWindowStart].sort()[0];
 
         const sessionsResult = await this.client
             .from('workout_sessions')
@@ -91,19 +99,28 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
             .gte('date', sessionFetchStart);
         const sessions = requireSupabaseOk(sessionsResult as any, 'Unable to load progress sessions') as CompletedSessionRow[];
 
-        const { exerciseIdToSession, sets } = await this.loadExercisesAndSets(sessions);
+        const { exerciseIdToExercise, exerciseIdToSession, sets } = await this.loadExercisesAndSets(sessions);
         const volumeTrend = this.computeVolumeTrend(sessions, sets, exerciseIdToSession, now);
-        const { oneRmTrend, averageRpe } = this.computeOneRmAndRpeTrend(sessions, sets, exerciseIdToSession, rangeStart);
+        const { liftSummaries, oneRmTrend, selectedLiftId } = this.computeLiftTrends(
+            sessions,
+            sets,
+            exerciseIdToSession,
+            exerciseIdToExercise,
+            now
+        );
+        const { averageRpe } = this.computeOneRmAndRpeTrend(sessions, sets, exerciseIdToSession, rangeStart);
         const readinessScore = await this.computeReadinessScore(userId, sessions);
 
         const logs: ProgressLogDto[] = [];
 
         return {
             averageRpe,
+            liftSummaries,
+            oneRmTrend,
             range,
             recoveryScore: readinessScore,
+            selectedLiftId,
             volumeTrend,
-            oneRmTrend,
             logs
         };
     }
@@ -210,12 +227,55 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         return { oneRmTrend, averageRpe };
     }
 
+    private computeLiftTrends(
+        sessions: CompletedSessionRow[],
+        sets: SetRow[],
+        exerciseIdToSession: Map<string, string>,
+        exerciseIdToExercise: Map<string, { exerciseId: string; exerciseName: string }>,
+        today: Date
+    ): { liftSummaries: ReturnType<typeof buildLiftSummaries>['liftSummaries']; oneRmTrend: ProgressPointDto[]; selectedLiftId: string | null } {
+        const windowStart = getLiftTrendWindowStart(today);
+        const rows: LiftTrendSessionRow[] = [];
+        const sessionById = new Map(sessions.map((session) => [session.id, session]));
+
+        for (const set of sets) {
+            if (set.weight_kg === null || set.reps === null) {
+                continue;
+            }
+
+            const sessionId = exerciseIdToSession.get(set.session_exercise_id);
+            const session = sessionId ? sessionById.get(sessionId) : null;
+            if (!session || session.date < windowStart) {
+                continue;
+            }
+
+            const exercise = exerciseIdToExercise.get(set.session_exercise_id);
+            if (!exercise) {
+                continue;
+            }
+
+            rows.push({
+                date: session.date,
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                oneRmValue: set.weight_kg * (1 + set.reps / 30)
+            });
+        }
+
+        return buildLiftSummaries(rows);
+    }
+
     private async loadExercisesAndSets(
         sessions: CompletedSessionRow[]
-    ): Promise<{ exerciseIdToSession: Map<string, string>; sets: SetRow[] }> {
+    ): Promise<{
+        exerciseIdToExercise: Map<string, { exerciseId: string; exerciseName: string }>;
+        exerciseIdToSession: Map<string, string>;
+        sets: SetRow[];
+    }> {
         const sessionIds = sessions.map((session) => session.id);
         if (!sessionIds.length) {
             return {
+                exerciseIdToExercise: new Map(),
                 exerciseIdToSession: new Map(),
                 sets: []
             };
@@ -223,7 +283,7 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
 
         const exercisesResult = await this.client
             .from('workout_session_exercises')
-            .select('id,session_id')
+            .select('id,session_id,exercise_id,exercise_name')
             .in('session_id', sessionIds);
         const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load progress exercises') as SessionExerciseRow[];
         const exerciseIds = exercises.map((exercise) => exercise.id);
@@ -238,6 +298,15 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         }
 
         return {
+            exerciseIdToExercise: new Map(
+                exercises.map((exercise) => [
+                    exercise.id,
+                    {
+                        exerciseId: exercise.exercise_id,
+                        exerciseName: exercise.exercise_name
+                    }
+                ])
+            ),
             exerciseIdToSession: new Map(exercises.map((exercise) => [exercise.id, exercise.session_id])),
             sets
         };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Brain, ChevronDown, CircleHelp, Clock3, Gauge, HeartPulse, MoveRight } from 'lucide-react';
 import { progressQueryOptions } from '../../lib/client/app-query';
 import type { ProgressPointDto, ProgressVolumeWeekDto } from '../../lib/server/backend/types';
@@ -9,6 +9,8 @@ import type { ProgressPointDto, ProgressVolumeWeekDto } from '../../lib/server/b
 type ChartPoint = {
     x: number;
     y: number;
+    label: string;
+    value: number;
 };
 
 function getVolumeBarFill(value: number, maxValue: number): string {
@@ -29,7 +31,9 @@ function buildLineChartPoints(points: ProgressPointDto[]): ChartPoint[] {
 
     return points.map((point, index) => ({
         x: 20 + step * index,
-        y: 180 - Math.round((point.value / maxValue) * 140)
+        y: 180 - Math.round((point.value / maxValue) * 140),
+        label: point.label,
+        value: point.value
     }));
 }
 
@@ -88,6 +92,53 @@ function formatWeekRange(weekStart: string, weekEnd: string): string {
     return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
 }
 
+function formatLiftDate(date: string | null): string {
+    if (!date) {
+        return 'No training history yet';
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC'
+    }).format(new Date(`${date}T00:00:00.000Z`));
+}
+
+function roundToNearest(value: number, step: number): number {
+    return Math.round(value / step) * step;
+}
+
+function formatLoad(value: number): string {
+    const formatted = value.toLocaleString('en-US', {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: Number.isInteger(value) ? 0 : 1
+    });
+
+    return `${formatted} KG`;
+}
+
+function buildNextLoadTargets(currentEstimatedOneRmKg: number): Array<{ label: string; percent: number; value: number }> {
+    if (currentEstimatedOneRmKg <= 0) {
+        return [];
+    }
+
+    return [
+        { label: 'Base', percent: 80, value: roundToNearest(currentEstimatedOneRmKg * 0.8, 2.5) },
+        { label: 'Build', percent: 85, value: roundToNearest(currentEstimatedOneRmKg * 0.85, 2.5) },
+        { label: 'Stretch', percent: 90, value: roundToNearest(currentEstimatedOneRmKg * 0.9, 2.5) }
+    ];
+}
+
+function getOneRmDeltaLabel(currentValue: number, previousValue: number): string {
+    if (previousValue <= 0) {
+        return currentValue > 0 ? '+ first recorded estimate' : 'No estimate yet';
+    }
+
+    const delta = currentValue - previousValue;
+    const prefix = delta >= 0 ? '+' : '';
+    return `${prefix}${delta.toLocaleString('en-US')} kg vs prev month`;
+}
+
 function getBarDetailLeft(index: number, total: number): string {
     const percentage = ((index + 0.5) / total) * 100;
     return `${Math.max(10, Math.min(90, percentage))}%`;
@@ -95,7 +146,21 @@ function getBarDetailLeft(index: number, total: number): string {
 
 export default function ProgressPage() {
     const { data: summary, error, isLoading } = useQuery(progressQueryOptions('mtd'));
+    const [selectedLiftId, setSelectedLiftId] = useState<string | null>(null);
     const [selectedVolumeLabel, setSelectedVolumeLabel] = useState<string | null>(null);
+    const [selectedTrendLabel, setSelectedTrendLabel] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!summary) {
+            return;
+        }
+
+        if (selectedLiftId && summary.liftSummaries.some((lift) => lift.exerciseId === selectedLiftId)) {
+            return;
+        }
+
+        setSelectedLiftId(summary.selectedLiftId ?? summary.liftSummaries[0]?.exerciseId ?? null);
+    }, [selectedLiftId, summary]);
 
     if (isLoading || !summary) {
         return <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">Loading progress...</main>;
@@ -110,7 +175,12 @@ export default function ProgressPage() {
     }
 
     const volumeBars = summary.volumeTrend;
-    const oneRmStats = summary.oneRmTrend;
+    const selectedLift =
+        summary.liftSummaries.find((lift) => lift.exerciseId === selectedLiftId) ??
+        summary.liftSummaries.find((lift) => lift.exerciseId === summary.selectedLiftId) ??
+        summary.liftSummaries[0] ??
+        null;
+    const oneRmStats = selectedLift?.trend ?? summary.oneRmTrend;
     const linePoints = buildLineChartPoints(oneRmStats);
     const linePath = buildLinePath(linePoints);
     const volumeMax = Math.max(...volumeBars.map((bar) => bar.value), 1);
@@ -118,7 +188,12 @@ export default function ProgressPage() {
     const activeVolumeBar = volumeBars.find((bar) => bar.label === selectedVolumeLabel) ?? defaultVolumeBar;
     const activeVolumeIndex = activeVolumeBar ? volumeBars.findIndex((bar) => bar.label === activeVolumeBar.label) : -1;
     const previousVolume = activeVolumeIndex > 0 ? volumeBars[activeVolumeIndex - 1]?.value ?? 0 : 0;
-    const currentPeak = oneRmStats.at(-1)?.value ?? 0;
+    const activeTrendPoint =
+        oneRmStats.find((point) => point.label === selectedTrendLabel) ?? oneRmStats.at(-1) ?? null;
+    const activeTrendPointIndex = activeTrendPoint ? oneRmStats.findIndex((point) => point.label === activeTrendPoint.label) : -1;
+    const currentPeak = selectedLift?.currentEstimatedOneRmKg ?? oneRmStats.at(-1)?.value ?? 0;
+    const previousPeak = selectedLift?.previousEstimatedOneRmKg ?? oneRmStats.at(-2)?.value ?? 0;
+    const nextLoadTargets = buildNextLoadTargets(currentPeak);
     const coachHeadline = summary.coach.headline;
     const coachSummary = summary.coach.summary;
     const averageRpe = summary.averageRpe;
@@ -128,6 +203,7 @@ export default function ProgressPage() {
     const currentMonthLabel = getCurrentMonthLabel();
     const activeWeekDescriptor = activeVolumeBar?.isCurrentWeek ? 'the current week' : activeVolumeBar?.label ?? 'this week';
     const showVolumeTooltip = selectedVolumeLabel !== null && activeVolumeBar !== null;
+    const showLiftTooltip = activeTrendPoint !== null && linePoints.length > 0;
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -339,73 +415,177 @@ export default function ProgressPage() {
                 </section>
 
                 <section className="flex flex-col rounded-xl bg-surface-container-low p-8">
-                    <div className="mb-8 flex items-center justify-between">
-                        <div>
-                            <div className="mb-1 flex items-center gap-2">
+                    <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
                                 <h3 className="font-headline text-lg font-bold">Estimated 1RM</h3>
                                 <CircleHelp className="h-4 w-4 text-on-surface-variant" strokeWidth={2.1} />
                             </div>
-                            <div className="inline-flex items-center rounded-lg border border-outline-variant/20 bg-surface-container-high px-3 py-1.5">
-                                <span className="mr-4 text-xs font-bold text-on-surface">Primary Lift</span>
-                                <ChevronDown className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2.1} />
-                            </div>
+                            <label className="block">
+                                <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                    Primary Lift
+                                </span>
+                                <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-outline-variant/20 bg-surface-container-high px-3 py-2">
+                                    <select
+                                        aria-label="Primary Lift"
+                                        className="min-w-0 appearance-none border-0 bg-transparent pr-6 font-headline text-sm font-bold text-on-surface outline-none"
+                                        data-testid="estimated-1rm-select"
+                                        value={selectedLift?.exerciseId ?? ''}
+                                        onChange={(event) => {
+                                            setSelectedLiftId(event.target.value);
+                                            setSelectedTrendLabel(null);
+                                        }}
+                                    >
+                                        {summary.liftSummaries.length > 0 ? (
+                                            summary.liftSummaries.map((lift) => (
+                                                <option key={lift.exerciseId} value={lift.exerciseId}>
+                                                    {lift.exerciseName} · {formatLoad(lift.currentEstimatedOneRmKg)}
+                                                </option>
+                                            ))
+                                        ) : (
+                                            <option value="">No lift history yet</option>
+                                        )}
+                                    </select>
+                                    <ChevronDown className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2.1} />
+                                </div>
+                            </label>
+                            <p className="text-xs text-on-surface-variant">
+                                Last trained {formatLiftDate(selectedLift?.lastTrainedAt ?? null)}
+                            </p>
                         </div>
                         <div className="text-right">
                             <p className="font-label text-xs uppercase tracking-[0.18em] text-on-surface-variant">
-                                Current Peak
+                                Current estimate
                             </p>
-                            <p className="font-headline text-3xl font-black italic">
-                                {currentPeak}{' '}
-                                <span className="font-label text-sm uppercase not-italic">KG</span>
+                            <p className="font-headline text-3xl font-black italic" data-testid="estimated-1rm-current">
+                                {formatLoad(currentPeak)}
+                            </p>
+                            <p className="mt-1 font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
+                                {getOneRmDeltaLabel(currentPeak, previousPeak)}
                             </p>
                         </div>
                     </div>
 
-                    <div className="relative flex-1">
-                        <div className="chart-gradient relative h-48 w-full overflow-hidden rounded-bl-lg border-l border-b border-outline-variant/30">
-                            <svg className="absolute inset-0 h-full w-full" fill="none" viewBox="0 0 400 200">
-                                <defs>
-                                    <linearGradient id="grid-fade" x1="0" x2="0" y1="0" y2="1">
-                                        <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
-                                        <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                                    </linearGradient>
-                                </defs>
-                                {[40, 90, 140].map((y) => (
-                                    <line
-                                        key={y}
-                                        x1="20"
-                                        y1={y}
-                                        x2="380"
-                                        y2={y}
-                                        stroke="url(#grid-fade)"
-                                        strokeDasharray="6 8"
-                                        strokeWidth="1"
+                    <div className="grid flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+                        <div className="relative">
+                            <div
+                                className="chart-gradient relative h-48 w-full overflow-hidden rounded-bl-lg border-l border-b border-outline-variant/30"
+                                onMouseLeave={() => setSelectedTrendLabel(null)}
+                            >
+                                {showLiftTooltip && activeTrendPoint ? (
+                                    <div
+                                        className="pointer-events-none absolute top-0 z-20 w-40 -translate-x-1/2 rounded-xl border border-primary-dim/20 bg-surface-container-high px-3 py-2 text-left shadow-xl shadow-black/20"
+                                        data-testid="estimated-1rm-tooltip"
+                                        style={{ left: getBarDetailLeft(activeTrendPointIndex, linePoints.length) }}
+                                    >
+                                        <p className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
+                                            {activeTrendPoint.label}
+                                        </p>
+                                        <p className="mt-1 font-headline text-sm font-bold text-on-surface">
+                                            {formatLoad(activeTrendPoint.value)}
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-on-surface-variant">
+                                            {selectedLift?.exerciseName ?? 'Primary lift'}
+                                        </p>
+                                    </div>
+                                ) : null}
+                                <svg className="absolute inset-0 h-full w-full" fill="none" viewBox="0 0 400 200">
+                                    <defs>
+                                        <linearGradient id="grid-fade" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
+                                            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                                        </linearGradient>
+                                    </defs>
+                                    {[40, 90, 140].map((y) => (
+                                        <line
+                                            key={y}
+                                            x1="20"
+                                            y1={y}
+                                            x2="380"
+                                            y2={y}
+                                            stroke="url(#grid-fade)"
+                                            strokeDasharray="6 8"
+                                            strokeWidth="1"
+                                        />
+                                    ))}
+                                    <path
+                                        d={linePath}
+                                        stroke="#D1FF26"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="4"
                                     />
+                                    {linePoints.map((point, index) => {
+                                        const isActive = point.label === activeTrendPoint?.label;
+
+                                        return (
+                                            <circle
+                                                key={`${point.x}-${point.y}-${index}`}
+                                                aria-label={`${selectedLift?.exerciseName ?? 'Primary lift'} ${point.label} ${formatLoad(oneRmStats[index]?.value ?? 0)}`}
+                                                cx={point.x}
+                                                cy={point.y}
+                                                fill={isActive ? '#00E3FD' : index === linePoints.length - 1 ? '#D1FF26' : '#D1FF26'}
+                                                r={isActive ? 6 : index === linePoints.length - 1 ? 5.5 : 4.5}
+                                                role="button"
+                                                stroke="#0c0e11"
+                                                strokeWidth="3"
+                                                tabIndex={0}
+                                                onBlur={() => setSelectedTrendLabel(null)}
+                                                onClick={() => setSelectedTrendLabel(point.label)}
+                                                onFocus={() => setSelectedTrendLabel(point.label)}
+                                                onMouseEnter={() => setSelectedTrendLabel(point.label)}
+                                            />
+                                        );
+                                    })}
+                                </svg>
+                            </div>
+                            <div className="mt-4 flex justify-between text-[10px] text-on-surface-variant">
+                                {oneRmStats.map((point) => (
+                                    <span
+                                        key={point.label}
+                                        className={point.label === activeTrendPoint?.label ? 'font-bold text-primary-dim' : ''}
+                                    >
+                                        {point.label}
+                                    </span>
                                 ))}
-                                <path
-                                    d={linePath}
-                                    stroke="#D1FF26"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="4"
-                                />
-                                {linePoints.map((point, index) => (
-                                    <circle
-                                        key={`${point.x}-${point.y}-${index}`}
-                                        cx={point.x}
-                                        cy={point.y}
-                                        fill={index === linePoints.length - 1 ? '#00E3FD' : '#D1FF26'}
-                                        r={index === linePoints.length - 1 ? 6 : 4.5}
-                                        stroke="#0c0e11"
-                                        strokeWidth="3"
-                                    />
-                                ))}
-                            </svg>
+                            </div>
                         </div>
-                        <div className="mt-4 flex justify-between text-[10px] text-on-surface-variant">
-                            {oneRmStats.map((point) => (
-                                <span key={point.label}>{point.label}</span>
-                            ))}
+
+                        <div className="space-y-4 rounded-2xl border border-outline-variant/10 bg-surface-container-high p-4">
+                            <div>
+                                <p className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                                    Next session targets
+                                </p>
+                                <p className="mt-1 text-sm text-on-surface-variant">
+                                    Practical load targets based on the current estimate.
+                                </p>
+                            </div>
+                            {nextLoadTargets.length > 0 ? (
+                                <div className="space-y-3">
+                                    {nextLoadTargets.map((target) => (
+                                        <div
+                                            key={target.label}
+                                            data-testid={`estimated-1rm-target-${target.label.toLowerCase()}`}
+                                            className="flex items-center justify-between rounded-xl bg-surface-container-low px-3 py-2"
+                                        >
+                                            <div>
+                                                <p className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
+                                                    {target.label}
+                                                </p>
+                                                <p className="text-xs text-on-surface-variant">{target.percent}% of current</p>
+                                            </div>
+                                            <p className="font-headline text-sm font-bold text-on-surface">{formatLoad(target.value)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-on-surface-variant">
+                                    Train this lift with logged sets to unlock next-session load targets.
+                                </p>
+                            )}
+                            <p className="text-xs text-on-surface-variant">
+                                Rounded to the nearest 2.5 kg from the selected lift&apos;s current estimate.
+                            </p>
                         </div>
                     </div>
                 </section>
