@@ -149,6 +149,7 @@ export default function ProgressPage() {
     const [selectedLiftId, setSelectedLiftId] = useState<string | null>(null);
     const [selectedVolumeLabel, setSelectedVolumeLabel] = useState<string | null>(null);
     const [selectedTrendLabel, setSelectedTrendLabel] = useState<string | null>(null);
+    const [showOneRmInfoTooltip, setShowOneRmInfoTooltip] = useState(false);
 
     useEffect(() => {
         if (!summary) {
@@ -419,8 +420,34 @@ export default function ProgressPage() {
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-headline text-lg font-bold">Estimated 1RM</h3>
-                                <CircleHelp className="h-4 w-4 text-on-surface-variant" strokeWidth={2.1} />
+                                <button
+                                    aria-describedby="estimated-1rm-info"
+                                    aria-label="What is Estimated 1RM?"
+                                    className="relative flex h-6 w-6 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-white/5 hover:text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-dim"
+                                    onBlur={() => setShowOneRmInfoTooltip(false)}
+                                    onClick={() => setShowOneRmInfoTooltip((current) => !current)}
+                                    onMouseEnter={() => setShowOneRmInfoTooltip(true)}
+                                    onMouseLeave={() => setShowOneRmInfoTooltip(false)}
+                                    type="button"
+                                >
+                                    <CircleHelp className="h-4 w-4" strokeWidth={2.1} />
+                                </button>
                             </div>
+                            {showOneRmInfoTooltip ? (
+                                <div
+                                    className="max-w-xs rounded-xl border border-outline-variant/20 bg-surface-container-high px-3 py-2 text-left shadow-xl shadow-black/20"
+                                    id="estimated-1rm-info"
+                                    role="tooltip"
+                                >
+                                    <p className="font-label text-[10px] font-bold uppercase tracking-[0.16em] text-primary-dim">
+                                        How it works
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
+                                        Estimated 1RM is based on your logged sets. Use it to pick next-session loads; it&apos;s
+                                        a guide, not a max test.
+                                    </p>
+                                </div>
+                            ) : null}
                             <label className="block">
                                 <span className="font-label text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
                                     Primary Lift
