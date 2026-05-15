@@ -1,11 +1,7 @@
 import type { AnalyticsRepository } from '../contracts';
-import type { ProgressLogDto, ProgressPointDto, ProgressSummaryDto } from '../../types';
+import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto } from '../../types';
 import { ensureScaffoldForDate, getSqliteRepositoryDatabase, toIsoDate } from './shared';
-
-type WeeklyVolumeRow = {
-    weekLabel: string;
-    totalVolumeKg: number;
-};
+import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart, type WeeklyVolumeSession } from '../volume-trend';
 
 type OneRmRow = {
     monthValue: string;
@@ -18,13 +14,14 @@ type LogSummaryRow = {
 };
 
 export class SqliteAnalyticsRepository implements AnalyticsRepository {
-    async getProgressSummary(userId: string, range: string): Promise<ProgressSummaryDto> {
+    async getProgressSummary(userId: string, range: string): Promise<ProgressMetricsSummaryDto> {
         const db = getSqliteRepositoryDatabase();
-        const today = toIsoDate(new Date());
+        const now = new Date();
+        const today = toIsoDate(now);
         ensureScaffoldForDate(db, userId, today);
         const rangeStart = this.getRangeStart(today, range);
 
-        const volumeTrend = this.getVolumeTrend(db, userId, rangeStart);
+        const volumeTrend = this.getVolumeTrend(db, userId, now);
         const oneRmTrend = this.getOneRmTrend(db, userId, rangeStart);
         const { averageRpe, logs, recoveryScore } = this.getLogs(db, userId, rangeStart);
 
@@ -41,34 +38,23 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
     private getVolumeTrend(
         db: ReturnType<typeof getSqliteRepositoryDatabase>,
         userId: string,
-        rangeStart: string
+        today: Date
     ): ProgressPointDto[] {
-        const rows = db
+        const windowStart = getVolumeTrendWindowStart(today);
+        const sessions = db
             .prepare(`
                 SELECT
-                    printf('W%s', CAST(strftime('%W', date) AS INTEGER) + 1) AS weekLabel,
-                    COALESCE(SUM(total_volume_kg), 0) AS totalVolumeKg
+                    date,
+                    total_volume_kg AS totalVolumeKg
                 FROM workout_sessions
                 WHERE user_id = ?
                   AND date >= ?
                   AND status = 'completed'
-                GROUP BY strftime('%Y-%W', date)
-                ORDER BY date DESC
-                LIMIT 8
+                ORDER BY date ASC
             `)
-            .all(userId, rangeStart) as WeeklyVolumeRow[];
+            .all(userId, windowStart) as WeeklyVolumeSession[];
 
-        if (!rows.length) {
-            return Array.from({ length: 8 }, (_, index) => ({
-                label: `W${index + 1}`,
-                value: 0
-            }));
-        }
-
-        return rows.reverse().map((row) => ({
-            label: row.weekLabel,
-            value: Math.round(row.totalVolumeKg)
-        }));
+        return buildWeeklyVolumeTrend(sessions, today);
     }
 
     private getOneRmTrend(
@@ -121,13 +107,13 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         const row = db
             .prepare(`
                 SELECT
-                    AVG(rpe) AS averageRpe,
-                    AVG(score) AS readinessScore
-                FROM workout_sets
+                    AVG(workout_sets.rpe) AS averageRpe,
+                    AVG(daily_readiness.score) AS readinessScore
+                FROM workout_sessions
                 LEFT JOIN workout_session_exercises
-                    ON workout_session_exercises.id = workout_sets.session_exercise_id
-                LEFT JOIN workout_sessions
-                    ON workout_sessions.id = workout_session_exercises.session_id
+                    ON workout_session_exercises.session_id = workout_sessions.id
+                LEFT JOIN workout_sets
+                    ON workout_sets.session_exercise_id = workout_session_exercises.id
                 LEFT JOIN daily_readiness
                     ON daily_readiness.user_id = workout_sessions.user_id
                    AND daily_readiness.date = workout_sessions.date

@@ -13,6 +13,16 @@ function setTestDatabase() {
     process.env.PUMPME_SQLITE_PATH = path.join(tempDir, 'pumpme.sqlite');
 }
 
+function getIsoDateDaysAgo(daysAgo: number): string {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - daysAgo);
+    return date.toISOString().slice(0, 10);
+}
+
+function getIsoDateWeeksAgo(weeksAgo: number): string {
+    return getIsoDateDaysAgo(weeksAgo * 7);
+}
+
 beforeEach(() => {
     closeDatabase();
     setTestDatabase();
@@ -164,9 +174,10 @@ test('default today session is empty when no workout input exists yet', async ()
 
 test('analytics repository returns average RPE as a first-class progress metric', async () => {
     const repositories = createSqliteRepositories();
+    const sessionDate = getIsoDateDaysAgo(2);
 
     const session = await repositories.workouts.startSession('local-user', {
-        date: '2026-04-12',
+        date: sessionDate,
         title: 'Intensity Session',
         focus: 'Upper body'
     });
@@ -249,23 +260,75 @@ test('analytics repository month-to-date RPE excludes prior-month sessions', asy
     assert.equal(summary.averageRpe, 8);
 });
 
-test('analytics repository returns recovery score as a first-class progress metric', async () => {
+test('analytics repository returns fixed weekly volume buckets with current week as W8', async () => {
     const repositories = createSqliteRepositories();
 
-    await repositories.readiness.updateReadinessDay('local-user', '2026-04-11', {
+    const createCompletedSessionWithVolume = async (date: string, weightKg: number, reps: number) => {
+        const session = await repositories.workouts.startSession('local-user', {
+            date,
+            title: `Volume ${date}`,
+            focus: 'Lower body'
+        });
+        const withExercise = await repositories.workouts.addExercise('local-user', session.id, {
+            exerciseId: 'exercise-squat',
+            exerciseName: 'Squat'
+        });
+        const exercise = withExercise.exercises[0];
+        assert.ok(exercise);
+
+        const withSet = await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+            weightKg,
+            reps
+        });
+        const set = withSet.exercises[0]?.sets[0];
+        assert.ok(set);
+
+        await repositories.workouts.updateSet('local-user', session.id, set!.id, {
+            completed: true
+        });
+        await repositories.workouts.finishSession('local-user', session.id);
+    };
+
+    await createCompletedSessionWithVolume(getIsoDateWeeksAgo(3), 100, 5);
+    await createCompletedSessionWithVolume(getIsoDateWeeksAgo(1), 80, 4);
+    await createCompletedSessionWithVolume(getIsoDateWeeksAgo(0), 60, 3);
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', 'mtd');
+
+    assert.deepEqual(
+        summary.volumeTrend,
+        [
+            { label: 'W1', value: 0 },
+            { label: 'W2', value: 0 },
+            { label: 'W3', value: 0 },
+            { label: 'W4', value: 0 },
+            { label: 'W5', value: 500 },
+            { label: 'W6', value: 0 },
+            { label: 'W7', value: 80 * 4 },
+            { label: 'W8', value: 60 * 3 }
+        ]
+    );
+});
+
+test('analytics repository returns recovery score as a first-class progress metric', async () => {
+    const repositories = createSqliteRepositories();
+    const firstDate = getIsoDateDaysAgo(3);
+    const secondDate = getIsoDateDaysAgo(2);
+
+    await repositories.readiness.updateReadinessDay('local-user', firstDate, {
         score: 80
     });
-    await repositories.readiness.updateReadinessDay('local-user', '2026-04-12', {
+    await repositories.readiness.updateReadinessDay('local-user', secondDate, {
         score: 90
     });
 
     const firstSession = await repositories.workouts.startSession('local-user', {
-        date: '2026-04-11',
+        date: firstDate,
         title: 'Recovery Test A',
         focus: 'Upper body'
     });
     const secondSession = await repositories.workouts.startSession('local-user', {
-        date: '2026-04-12',
+        date: secondDate,
         title: 'Recovery Test B',
         focus: 'Lower body'
     });

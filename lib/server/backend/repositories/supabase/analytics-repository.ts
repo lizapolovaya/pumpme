@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AnalyticsRepository } from '../contracts';
-import type { ProgressLogDto, ProgressPointDto, ProgressSummaryDto } from '../../types';
+import type { ProgressLogDto, ProgressMetricsSummaryDto, ProgressPointDto } from '../../types';
 import { ensureScaffoldForDate, toIsoDate } from './shared';
 import { requireSupabaseOk } from './client';
+import { buildWeeklyVolumeTrend, getVolumeTrendWindowStart } from '../volume-trend';
 
 type CompletedSessionRow = {
     id: string;
@@ -71,41 +72,27 @@ function formatMonthLabel(monthValue: string): string {
     );
 }
 
-function getSqliteWeekNumber(dateString: string): number {
-    // Mirrors SQLite strftime('%W', date) with Monday as the first day of the week.
-    const date = new Date(`${dateString}T00:00:00.000Z`);
-    const year = date.getUTCFullYear();
-    const jan1 = new Date(Date.UTC(year, 0, 1));
-    const jan1DayIndex = (jan1.getUTCDay() + 6) % 7; // Mon=0..Sun=6
-    const firstMonday = new Date(jan1);
-    firstMonday.setUTCDate(jan1.getUTCDate() + ((7 - jan1DayIndex) % 7));
-
-    if (date < firstMonday) {
-        return 0;
-    }
-
-    const diffDays = Math.floor((date.getTime() - firstMonday.getTime()) / (24 * 60 * 60 * 1000));
-    return Math.floor(diffDays / 7) + 1;
-}
-
 export class SupabaseAnalyticsRepository implements AnalyticsRepository {
     constructor(private readonly client: SupabaseClient) {}
 
-    async getProgressSummary(userId: string, range: string): Promise<ProgressSummaryDto> {
-        const today = toIsoDate(new Date());
+    async getProgressSummary(userId: string, range: string): Promise<ProgressMetricsSummaryDto> {
+        const now = new Date();
+        const today = toIsoDate(now);
         await ensureScaffoldForDate(this.client, userId, today);
 
         const rangeStart = resolveRangeStart(today, range);
+        const volumeTrendWindowStart = getVolumeTrendWindowStart(now);
+        const sessionFetchStart = rangeStart < volumeTrendWindowStart ? rangeStart : volumeTrendWindowStart;
 
         const sessionsResult = await this.client
             .from('workout_sessions')
             .select('id,date,total_volume_kg')
             .eq('user_id', userId)
             .eq('status', 'completed')
-            .gte('date', rangeStart);
+            .gte('date', sessionFetchStart);
         const sessions = requireSupabaseOk(sessionsResult as any, 'Unable to load progress sessions') as CompletedSessionRow[];
 
-        const volumeTrend = this.computeVolumeTrend(sessions);
+        const volumeTrend = this.computeVolumeTrend(sessions, now);
         const { oneRmTrend, averageRpe } = await this.computeOneRmAndRpeTrend(userId, sessions, rangeStart);
         const readinessScore = await this.computeReadinessScore(userId, sessions);
 
@@ -121,38 +108,14 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         };
     }
 
-    private computeVolumeTrend(sessions: CompletedSessionRow[]): ProgressPointDto[] {
-        if (!sessions.length) {
-            return Array.from({ length: 8 }, (_, index) => ({ label: `W${index + 1}`, value: 0 }));
-        }
-
-        const byWeek = new Map<string, { label: string; value: number; maxDate: string }>();
-        for (const session of sessions) {
-            const weekNumber = getSqliteWeekNumber(session.date);
-            const label = `W${weekNumber + 1}`;
-            const current = byWeek.get(label) ?? { label, value: 0, maxDate: session.date };
-            byWeek.set(label, {
-                label,
-                value: current.value + Math.round(session.total_volume_kg ?? 0),
-                maxDate: session.date > current.maxDate ? session.date : current.maxDate
-            });
-        }
-
-        const sorted = Array.from(byWeek.values())
-            .sort((a, b) => (a.maxDate < b.maxDate ? 1 : -1))
-            .slice(0, 8)
-            .reverse()
-            .map((row) => ({ label: row.label, value: row.value }));
-
-        if (sorted.length < 8) {
-            const pad = Array.from({ length: 8 - sorted.length }, (_, index) => ({
-                label: `W${index + 1}`,
-                value: 0
-            }));
-            return [...pad, ...sorted].slice(-8);
-        }
-
-        return sorted;
+    private computeVolumeTrend(sessions: CompletedSessionRow[], today: Date): ProgressPointDto[] {
+        return buildWeeklyVolumeTrend(
+            sessions.map((session) => ({
+                date: session.date,
+                totalVolumeKg: session.total_volume_kg
+            })),
+            today
+        );
     }
 
     private async computeOneRmAndRpeTrend(
