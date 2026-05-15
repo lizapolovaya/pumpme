@@ -52,6 +52,10 @@ function getDisciplineHeight(sessionCount: number, completed: boolean): string {
     return 'h-6';
 }
 
+function getWeeklyStreakValue(weeklyDiscipline: Array<{ completedSessionCount: number }>): number {
+    return weeklyDiscipline.reduce((sum, day) => sum + day.completedSessionCount, 0);
+}
+
 function toTitleCase(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -128,7 +132,7 @@ export default function Home() {
         currentNutrition.carbs,
         currentNutrition.fats
     ];
-    const activeDays = dashboard.weeklyDiscipline.filter((day) => day.completed).length;
+    const activeDays = getWeeklyStreakValue(dashboard.weeklyDiscipline);
     const hasCalculatedTargets = currentNutrition.calories.target > 0;
 
     async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {

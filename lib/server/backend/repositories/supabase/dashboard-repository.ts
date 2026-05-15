@@ -140,6 +140,7 @@ export class SupabaseDashboardRepository implements DashboardRepository {
                 date: currentDate,
                 label: weekdayFormatter.format(current).slice(0, 1),
                 sessionCount: row.sessionCount,
+                completedSessionCount: row.completedCount,
                 completed: row.completedCount > 0
             });
         }

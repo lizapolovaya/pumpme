@@ -111,6 +111,7 @@ export class SqliteDashboardRepository implements DashboardRepository {
                 date: currentDate,
                 label: weekdayFormatter.format(current).slice(0, 1),
                 sessionCount: row.sessionCount,
+                completedSessionCount: row.completedCount ?? 0,
                 completed: Boolean(row.completedCount ?? 0)
             });
         }

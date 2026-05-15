@@ -67,6 +67,7 @@ export type WeeklyDisciplineDayDto = {
     date: string;
     label: string;
     sessionCount: number;
+    completedSessionCount: number;
     completed: boolean;
 };
 
