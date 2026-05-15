@@ -334,6 +334,34 @@ test('analytics repository returns fixed weekly volume buckets with current week
     );
 });
 
+test('analytics repository counts weekly volume from logged sets before session completion', async () => {
+    const repositories = createSqliteRepositories();
+    const currentWeekDate = getIsoDateWeeksAgo(0);
+
+    const session = await repositories.workouts.startSession('local-user', {
+        date: currentWeekDate,
+        title: 'Live Volume Session',
+        focus: 'Upper body'
+    });
+    const withExercise = await repositories.workouts.addExercise('local-user', session.id, {
+        exerciseId: 'exercise-bench-press',
+        exerciseName: 'Bench Press'
+    });
+    const exercise = withExercise.exercises[0];
+    assert.ok(exercise);
+
+    await repositories.workouts.addSet('local-user', session.id, exercise!.id, {
+        weightKg: 100,
+        reps: 5
+    });
+
+    const summary = await repositories.analytics.getProgressSummary('local-user', 'mtd');
+    const currentWeek = summary.volumeTrend.at(-1);
+
+    assert.equal(currentWeek?.label, 'W8');
+    assert.equal(currentWeek?.value, 500);
+});
+
 test('analytics repository returns recovery score as a first-class progress metric', async () => {
     const repositories = createSqliteRepositories();
     const firstDate = getIsoDateDaysAgo(3);

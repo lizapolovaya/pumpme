@@ -44,13 +44,27 @@ export class SqliteAnalyticsRepository implements AnalyticsRepository {
         const sessions = db
             .prepare(`
                 SELECT
-                    date,
-                    total_volume_kg AS totalVolumeKg
+                    workout_sessions.date AS date,
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN workout_sets.weight_kg IS NOT NULL AND workout_sets.reps IS NOT NULL
+                                    THEN workout_sets.weight_kg * workout_sets.reps
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ) AS totalVolumeKg
                 FROM workout_sessions
-                WHERE user_id = ?
-                  AND date >= ?
-                  AND status = 'completed'
-                ORDER BY date ASC
+                LEFT JOIN workout_session_exercises
+                    ON workout_session_exercises.session_id = workout_sessions.id
+                LEFT JOIN workout_sets
+                    ON workout_sets.session_exercise_id = workout_session_exercises.id
+                WHERE workout_sessions.user_id = ?
+                  AND workout_sessions.date >= ?
+                GROUP BY workout_sessions.id, workout_sessions.date
+                HAVING totalVolumeKg > 0
+                ORDER BY workout_sessions.date ASC
             `)
             .all(userId, windowStart) as WeeklyVolumeSession[];
 

@@ -92,8 +92,9 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
             .gte('date', sessionFetchStart);
         const sessions = requireSupabaseOk(sessionsResult as any, 'Unable to load progress sessions') as CompletedSessionRow[];
 
-        const volumeTrend = this.computeVolumeTrend(sessions, now);
-        const { oneRmTrend, averageRpe } = await this.computeOneRmAndRpeTrend(userId, sessions, rangeStart);
+        const { exerciseIdToSession, sets } = await this.loadExercisesAndSets(sessions);
+        const volumeTrend = this.computeVolumeTrend(sessions, sets, exerciseIdToSession, now);
+        const { oneRmTrend, averageRpe } = this.computeOneRmAndRpeTrend(sessions, sets, exerciseIdToSession, rangeStart);
         const readinessScore = await this.computeReadinessScore(userId, sessions);
 
         const logs: ProgressLogDto[] = [];
@@ -108,21 +109,48 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
         };
     }
 
-    private computeVolumeTrend(sessions: CompletedSessionRow[], today: Date): ProgressVolumeWeekDto[] {
+    private computeVolumeTrend(
+        sessions: CompletedSessionRow[],
+        sets: SetRow[],
+        exerciseIdToSession: Map<string, string>,
+        today: Date
+    ): ProgressVolumeWeekDto[] {
+        const sessionById = new Map(
+            sessions.map((session) => [
+                session.id,
+                {
+                    date: session.date,
+                    totalVolumeKg: 0
+                }
+            ])
+        );
+
+        for (const set of sets) {
+            if (set.weight_kg === null || set.reps === null) {
+                continue;
+            }
+
+            const sessionId = exerciseIdToSession.get(set.session_exercise_id);
+            const session = sessionId ? sessionById.get(sessionId) : null;
+            if (!session) {
+                continue;
+            }
+
+            session.totalVolumeKg += set.weight_kg * set.reps;
+        }
+
         return buildWeeklyVolumeTrend(
-            sessions.map((session) => ({
-                date: session.date,
-                totalVolumeKg: session.total_volume_kg
-            })),
+            Array.from(sessionById.values()).filter((session) => session.totalVolumeKg > 0),
             today
         );
     }
 
-    private async computeOneRmAndRpeTrend(
-        userId: string,
+    private computeOneRmAndRpeTrend(
         sessions: CompletedSessionRow[],
+        sets: SetRow[],
+        exerciseIdToSession: Map<string, string>,
         rangeStart: string
-    ): Promise<{ oneRmTrend: ProgressPointDto[]; averageRpe: number }> {
+    ): { oneRmTrend: ProgressPointDto[]; averageRpe: number } {
         if (!sessions.length) {
             return {
                 oneRmTrend: [
@@ -135,28 +163,10 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
             };
         }
 
-        const sessionIds = sessions.map((session) => session.id);
-        const exercisesResult = await this.client
-            .from('workout_session_exercises')
-            .select('id,session_id')
-            .in('session_id', sessionIds);
-        const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load progress exercises') as SessionExerciseRow[];
-        const exerciseIds = exercises.map((exercise) => exercise.id);
-
-        let sets: SetRow[] = [];
-        if (exerciseIds.length) {
-            const setsResult = await this.client
-                .from('workout_sets')
-                .select('session_exercise_id,weight_kg,reps,rpe,completed')
-                .in('session_exercise_id', exerciseIds);
-            sets = requireSupabaseOk(setsResult as any, 'Unable to load progress sets') as SetRow[];
-        }
-
         const rpeValues = sets.map((set) => set.rpe).filter((value): value is number => typeof value === 'number');
         const averageRpe =
             rpeValues.length > 0 ? Number((rpeValues.reduce((sum, value) => sum + value, 0) / rpeValues.length).toFixed(1)) : 8.2;
 
-        const exerciseIdToSession = new Map(exercises.map((exercise) => [exercise.id, exercise.session_id]));
         const sessionById = new Map(sessions.map((session) => [session.id, session]));
 
         const byMonth = new Map<string, number>();
@@ -199,6 +209,39 @@ export class SupabaseAnalyticsRepository implements AnalyticsRepository {
                       }));
 
         return { oneRmTrend, averageRpe };
+    }
+
+    private async loadExercisesAndSets(
+        sessions: CompletedSessionRow[]
+    ): Promise<{ exerciseIdToSession: Map<string, string>; sets: SetRow[] }> {
+        const sessionIds = sessions.map((session) => session.id);
+        if (!sessionIds.length) {
+            return {
+                exerciseIdToSession: new Map(),
+                sets: []
+            };
+        }
+
+        const exercisesResult = await this.client
+            .from('workout_session_exercises')
+            .select('id,session_id')
+            .in('session_id', sessionIds);
+        const exercises = requireSupabaseOk(exercisesResult as any, 'Unable to load progress exercises') as SessionExerciseRow[];
+        const exerciseIds = exercises.map((exercise) => exercise.id);
+
+        let sets: SetRow[] = [];
+        if (exerciseIds.length) {
+            const setsResult = await this.client
+                .from('workout_sets')
+                .select('session_exercise_id,weight_kg,reps,rpe,completed')
+                .in('session_exercise_id', exerciseIds);
+            sets = requireSupabaseOk(setsResult as any, 'Unable to load progress sets') as SetRow[];
+        }
+
+        return {
+            exerciseIdToSession: new Map(exercises.map((exercise) => [exercise.id, exercise.session_id])),
+            sets
+        };
     }
 
     private async computeReadinessScore(userId: string, sessions: CompletedSessionRow[]): Promise<number> {

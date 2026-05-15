@@ -77,11 +77,14 @@ test('renders the major analytics widgets from seeded workout data', async ({ pa
     await expect(page.getByText(/^88%$/)).toBeVisible();
     await expect(page.getByText(/^700$/)).toBeVisible();
     await expect(page.getByText(/93\s*KG/)).toBeVisible();
+    await expect(page.getByTestId('volume-trend-tooltip')).toHaveCount(0);
 
     const currentWeekBar = page.getByTestId('volume-bar-W8');
     await currentWeekBar.hover();
     await expect(page.getByTestId('volume-trend-tooltip')).toContainText('W8');
     await expect(page.getByTestId('volume-trend-tooltip')).toContainText('700 KG');
+    await page.getByRole('heading', { name: 'Volume Trend' }).hover();
+    await expect(page.getByTestId('volume-trend-tooltip')).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId('volume-bar-W7').click();

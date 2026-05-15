@@ -244,3 +244,48 @@ test('progress route returns heuristic coach copy when OpenAI is not configured'
     assert.equal(typeof summary.volumeTrend[7]?.weekStart, 'string');
     assert.equal(typeof summary.volumeTrend[7]?.weekEnd, 'string');
 });
+
+test('progress route includes current-week volume from active sessions with logged sets', async () => {
+    const sessionResponse = await sessionsRoute.POST(
+        jsonRequest('http://localhost/api/workouts/sessions', 'POST', {
+            date: new Date().toISOString().slice(0, 10),
+            title: 'Live Progress Session',
+            focus: 'Lower body'
+        })
+    );
+    assert.equal(sessionResponse.status, 201);
+    const session = await sessionResponse.json();
+
+    const addExerciseResponse = await sessionExercisesRoute.POST(
+        jsonRequest(`http://localhost/api/workouts/sessions/${session.id}/exercises`, 'POST', {
+            exerciseId: 'exercise-deadlift',
+            exerciseName: 'Deadlift'
+        }),
+        {
+            params: Promise.resolve({ sessionId: session.id })
+        }
+    );
+    assert.equal(addExerciseResponse.status, 201);
+    const sessionWithExercise = await addExerciseResponse.json();
+    const exerciseRowId = sessionWithExercise.exercises[0]?.id;
+    assert.ok(exerciseRowId);
+
+    const addSetResponse = await sessionSetsRoute.POST(
+        jsonRequest(`http://localhost/api/workouts/sessions/${session.id}/sets`, 'POST', {
+            exerciseRowId,
+            reps: 3,
+            weightKg: 120
+        }),
+        {
+            params: Promise.resolve({ sessionId: session.id })
+        }
+    );
+    assert.equal(addSetResponse.status, 201);
+
+    const progressResponse = await progressRoute.GET(new Request('http://localhost/api/progress/summary?range=mtd'));
+    assert.equal(progressResponse.status, 200);
+    const summary = await progressResponse.json();
+
+    assert.equal(summary.volumeTrend[7]?.label, 'W8');
+    assert.equal(summary.volumeTrend[7]?.value, 360);
+});

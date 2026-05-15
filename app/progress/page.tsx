@@ -127,6 +127,7 @@ export default function ProgressPage() {
     const recoveryStatus = getRecoveryStatus(recoveryScore);
     const currentMonthLabel = getCurrentMonthLabel();
     const activeWeekDescriptor = activeVolumeBar?.isCurrentWeek ? 'the current week' : activeVolumeBar?.label ?? 'this week';
+    const showVolumeTooltip = selectedVolumeLabel !== null && activeVolumeBar !== null;
 
     return (
         <main className="mx-auto max-w-5xl space-y-8 px-6 pt-24 pb-32">
@@ -258,14 +259,14 @@ export default function ProgressPage() {
                     </div>
                     <div
                         className="relative flex h-48 flex-1 items-end justify-between gap-2"
-                        onMouseLeave={() => setSelectedVolumeLabel(defaultVolumeBar?.label ?? null)}
+                        onMouseLeave={() => setSelectedVolumeLabel(null)}
                     >
                         <div className="absolute inset-0 flex items-end opacity-20">
                             <div className="absolute bottom-0 h-px w-full bg-outline-variant" />
                             <div className="absolute bottom-1/3 h-px w-full bg-outline-variant" />
                             <div className="absolute bottom-2/3 h-px w-full bg-outline-variant" />
                         </div>
-                        {activeVolumeBar ? (
+                        {showVolumeTooltip && activeVolumeBar ? (
                             <div
                                 className="pointer-events-none absolute top-0 z-20 w-36 -translate-x-1/2 rounded-xl border border-primary-dim/20 bg-surface-container-high px-3 py-2 text-left shadow-xl shadow-black/20"
                                 data-testid="volume-trend-tooltip"
@@ -300,6 +301,11 @@ export default function ProgressPage() {
                                     data-testid={`volume-bar-${bar.label}`}
                                     key={bar.label}
                                     onClick={() => setSelectedVolumeLabel(bar.label)}
+                                    onBlur={(event) => {
+                                        if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
+                                            setSelectedVolumeLabel(null);
+                                        }
+                                    }}
                                     onFocus={() => setSelectedVolumeLabel(bar.label)}
                                     onMouseEnter={() => setSelectedVolumeLabel(bar.label)}
                                     type="button"
