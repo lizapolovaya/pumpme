@@ -21,8 +21,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'PumpMe Dashboard - Today',
-  description: 'Athletic performance dashboard for daily training readiness.',
+  title: 'PumpMe | Workout Tracking, Readiness & Progress App',
+  description:
+    "PumpMe helps you plan today's workout, log sets, track readiness, edit nutrition targets, review your calendar, and turn strength progress into next-session load targets.",
   applicationName: 'PumpMe',
   icons: {
     icon: '/icons/icon-192.png',

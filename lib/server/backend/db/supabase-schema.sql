@@ -192,12 +192,18 @@ alter table public.daily_nutrition_targets enable row level security;
 alter table public.daily_nutrition_totals enable row level security;
 alter table public.activity_daily_summaries enable row level security;
 
-create policy if not exists "users_select_own" on public.users for select using (auth.uid()::text = id);
-create policy if not exists "user_preferences_select_own" on public.user_preferences for select using (auth.uid()::text = user_id);
-create policy if not exists "user_metrics_select_own" on public.user_metrics for select using (auth.uid()::text = user_id);
-create policy if not exists "user_nutrition_settings_select_own" on public.user_nutrition_settings for select using (auth.uid()::text = user_id);
-create policy if not exists "workout_templates_select_own" on public.workout_templates for select using (auth.uid()::text = user_id);
-create policy if not exists "template_exercises_select_own" on public.template_exercises for select using (
+drop policy if exists "users_select_own" on public.users;
+create policy "users_select_own" on public.users for select using (auth.uid()::text = id);
+drop policy if exists "user_preferences_select_own" on public.user_preferences;
+create policy "user_preferences_select_own" on public.user_preferences for select using (auth.uid()::text = user_id);
+drop policy if exists "user_metrics_select_own" on public.user_metrics;
+create policy "user_metrics_select_own" on public.user_metrics for select using (auth.uid()::text = user_id);
+drop policy if exists "user_nutrition_settings_select_own" on public.user_nutrition_settings;
+create policy "user_nutrition_settings_select_own" on public.user_nutrition_settings for select using (auth.uid()::text = user_id);
+drop policy if exists "workout_templates_select_own" on public.workout_templates;
+create policy "workout_templates_select_own" on public.workout_templates for select using (auth.uid()::text = user_id);
+drop policy if exists "template_exercises_select_own" on public.template_exercises;
+create policy "template_exercises_select_own" on public.template_exercises for select using (
     exists (
         select 1
         from public.workout_templates
@@ -205,8 +211,10 @@ create policy if not exists "template_exercises_select_own" on public.template_e
           and workout_templates.user_id = auth.uid()::text
     )
 );
-create policy if not exists "workout_sessions_select_own" on public.workout_sessions for select using (auth.uid()::text = user_id);
-create policy if not exists "workout_session_exercises_select_own" on public.workout_session_exercises for select using (
+drop policy if exists "workout_sessions_select_own" on public.workout_sessions;
+create policy "workout_sessions_select_own" on public.workout_sessions for select using (auth.uid()::text = user_id);
+drop policy if exists "workout_session_exercises_select_own" on public.workout_session_exercises;
+create policy "workout_session_exercises_select_own" on public.workout_session_exercises for select using (
     exists (
         select 1
         from public.workout_sessions
@@ -214,7 +222,8 @@ create policy if not exists "workout_session_exercises_select_own" on public.wor
           and workout_sessions.user_id = auth.uid()::text
     )
 );
-create policy if not exists "workout_sets_select_own" on public.workout_sets for select using (
+drop policy if exists "workout_sets_select_own" on public.workout_sets;
+create policy "workout_sets_select_own" on public.workout_sets for select using (
     exists (
         select 1
         from public.workout_session_exercises
@@ -223,10 +232,14 @@ create policy if not exists "workout_sets_select_own" on public.workout_sets for
           and workout_sessions.user_id = auth.uid()::text
     )
 );
-create policy if not exists "daily_readiness_select_own" on public.daily_readiness for select using (auth.uid()::text = user_id);
-create policy if not exists "daily_nutrition_targets_select_own" on public.daily_nutrition_targets for select using (auth.uid()::text = user_id);
-create policy if not exists "daily_nutrition_totals_select_own" on public.daily_nutrition_totals for select using (auth.uid()::text = user_id);
-create policy if not exists "activity_daily_summaries_select_own" on public.activity_daily_summaries for select using (auth.uid()::text = user_id);
+drop policy if exists "daily_readiness_select_own" on public.daily_readiness;
+create policy "daily_readiness_select_own" on public.daily_readiness for select using (auth.uid()::text = user_id);
+drop policy if exists "daily_nutrition_targets_select_own" on public.daily_nutrition_targets;
+create policy "daily_nutrition_targets_select_own" on public.daily_nutrition_targets for select using (auth.uid()::text = user_id);
+drop policy if exists "daily_nutrition_totals_select_own" on public.daily_nutrition_totals;
+create policy "daily_nutrition_totals_select_own" on public.daily_nutrition_totals for select using (auth.uid()::text = user_id);
+drop policy if exists "activity_daily_summaries_select_own" on public.activity_daily_summaries;
+create policy "activity_daily_summaries_select_own" on public.activity_daily_summaries for select using (auth.uid()::text = user_id);
 
 create table if not exists personal_records (
     id text primary key,

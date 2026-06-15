@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getSupabaseAuthConfig, isE2EAuthBypassEnabled } from './lib/server/auth/config';
 
-const PUBLIC_PATHS = new Set(['/auth/callback', '/auth/google', '/auth/signout', '/help', '/login', '/privacy']);
+const PUBLIC_PATHS = new Set(['/', '/auth/callback', '/auth/google', '/auth/signout', '/help', '/login', '/privacy']);
 
 function isPublicPath(pathname: string): boolean {
     if (PUBLIC_PATHS.has(pathname)) {
@@ -14,6 +14,13 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+    const pathname = request.nextUrl.pathname;
+    const isPublic = isPublicPath(pathname);
+
+    if (isPublic) {
+        return NextResponse.next();
+    }
+
     if (isE2EAuthBypassEnabled()) {
         return NextResponse.next();
     }
@@ -56,10 +63,8 @@ export async function proxy(request: NextRequest) {
     const {
         data: { user }
     } = await client.auth.getUser();
-    const pathname = request.nextUrl.pathname;
-    const isPublic = isPublicPath(pathname);
 
-    if (!user && !isPublic) {
+    if (!user) {
         if (pathname.startsWith('/api/')) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }

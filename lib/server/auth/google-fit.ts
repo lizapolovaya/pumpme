@@ -10,9 +10,24 @@ import {
 } from './google-connection';
 
 function getDayRange(date: string) {
+    const [year, month, day] = date.split('-').map((value) => Number.parseInt(value, 10));
+    const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
+
     return {
-        endTime: `${date}T23:59:59Z`,
-        startTime: `${date}T00:00:00Z`
+        end: {
+            date: {
+                year: nextDay.getUTCFullYear(),
+                month: nextDay.getUTCMonth() + 1,
+                day: nextDay.getUTCDate()
+            }
+        },
+        start: {
+            date: {
+                year,
+                month,
+                day
+            }
+        }
     };
 }
 
@@ -83,7 +98,7 @@ export async function syncGoogleStepsForDate(userId: string, date: string): Prom
     }
 
     const { accessToken } = await refreshGoogleAccessToken(connection);
-    const { endTime, startTime } = getDayRange(date);
+    const { end, start } = getDayRange(date);
     const response = await fetch('https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp', {
         method: 'POST',
         headers: {
@@ -94,9 +109,10 @@ export async function syncGoogleStepsForDate(userId: string, date: string): Prom
         cache: 'no-store',
         body: JSON.stringify({
             range: {
-                startTime,
-                endTime
-            }
+                start,
+                end
+            },
+            windowSizeDays: 1
         })
     });
 

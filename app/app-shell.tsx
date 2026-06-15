@@ -15,7 +15,7 @@ import {
     workoutsQueryOptions
 } from '../lib/client/app-query';
 
-const SHELL_HIDDEN_PATHS = new Set(['/help', '/login', '/privacy']);
+const SHELL_HIDDEN_PATHS = new Set(['/help', '/login', '/privacy', '/']);
 
 function getActiveNav(pathname: string) {
     if (pathname.startsWith('/calendar')) {

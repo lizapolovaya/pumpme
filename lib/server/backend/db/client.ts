@@ -70,6 +70,25 @@ function runMigrations(db: SQLiteDatabase): void {
             continue;
         }
 
-        applyMigration(migration.id, migration.sql);
+        try {
+            applyMigration(migration.id, migration.sql);
+        } catch (error) {
+            if (!isSkippableMigrationError(error)) {
+                throw error;
+            }
+
+            insertMigration.run(migration.id);
+        }
     }
+}
+
+function isSkippableMigrationError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+
+    return (
+        error.message.includes('duplicate column name:') ||
+        error.message.includes('already exists')
+    );
 }

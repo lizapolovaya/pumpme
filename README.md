@@ -65,3 +65,11 @@ If you want browser-side realtime updates over Supabase Realtime/WebSockets, als
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
 
 Do not expose `PUMPME_SUPABASE_SERVICE_ROLE_KEY` in the browser. Realtime subscriptions should use an anon key with appropriate RLS policies.
+
+### Optional GPT Coach
+
+The Progress screen can generate the `AI Coach Analysis` card with OpenAI `gpt-5.5`.
+
+- Set `OPENAI_API_KEY` to enable live coach copy from the Responses API.
+- Optionally set `OPENAI_BASE_URL` if you need a compatible proxy or gateway.
+- If `OPENAI_API_KEY` is unset or the API call fails, the app falls back to the built-in heuristic coach text.
