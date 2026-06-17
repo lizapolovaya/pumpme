@@ -253,6 +253,19 @@ test('calendar month picker moves backward, forward, and back to current month',
     ]);
     await expect(page.getByRole('heading', { name: new RegExp(formatMonthHeading(currentYear, currentMonth), 'i') })).toBeVisible();
 
+    const directlySelectedMonth = currentMonth === 5 ? 4 : 5;
+    await Promise.all([
+        page.waitForURL(`**/calendar?year=${currentYear}&month=${directlySelectedMonth}&date=${currentYear}-${pad(directlySelectedMonth)}-01**`),
+        page.getByLabel('Calendar month').selectOption(String(directlySelectedMonth))
+    ]);
+    await expect(page.getByRole('heading', { name: new RegExp(formatMonthHeading(currentYear, directlySelectedMonth), 'i') })).toBeVisible();
+
+    await Promise.all([
+        page.waitForURL(`**/calendar?year=${currentYear}&month=${currentMonth}&date=${currentDate}**`),
+        page.getByRole('button', { name: 'Current' }).click()
+    ]);
+    await expect(page.getByRole('heading', { name: new RegExp(formatMonthHeading(currentYear, currentMonth), 'i') })).toBeVisible();
+
     await Promise.all([
         page.waitForURL(`**/calendar?year=${startingMonth.year}&month=${startingMonth.month}**`),
         page.getByRole('button', { name: 'Prev Month' }).click()

@@ -3,13 +3,29 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, type ChangeEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { calendarQueryOptions, getCurrentMonthParams } from '../../lib/client/app-query';
 import { RerunSessionButton } from './rerun-session-button';
 
 const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const exerciseAccentTones = ['border-secondary', 'border-primary-dim', 'border-tertiary'] as const;
+const monthOptions = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+] as const;
+const monthSelectClass =
+    'h-10 rounded-full border border-outline-variant/15 bg-surface-container-low px-4 font-label text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant transition-colors hover:bg-surface-container-high focus:border-primary-dim focus:outline-none';
 
 function formatMonthHeading(date: Date): string {
     return new Intl.DateTimeFormat('en-US', {
@@ -81,6 +97,14 @@ function shiftMonth(year: number, month: number, delta: number): { month: number
     };
 }
 
+function buildMonthDate(year: number, month: number): string {
+    return `${year}-${String(month).padStart(2, '0')}-01`;
+}
+
+function isValidIsoDate(value: string | null): value is string {
+    return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
 function CalendarPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -98,10 +122,10 @@ function CalendarPageContent() {
         parsedMonth >= 1 &&
         parsedMonth <= 12;
     const selectedDate =
-        rawSelectedDate && /^\d{4}-\d{2}-\d{2}$/.test(rawSelectedDate)
+        isValidIsoDate(rawSelectedDate) && (!hasExplicitMonth || rawSelectedDate.startsWith(`${parsedYear}-${String(parsedMonth).padStart(2, '0')}`))
             ? rawSelectedDate
             : hasExplicitMonth
-              ? `${parsedYear}-${String(parsedMonth).padStart(2, '0')}-01`
+              ? buildMonthDate(parsedYear, parsedMonth)
               : fallbackDate;
     const selectedMonthParams = hasExplicitMonth ? { month: parsedMonth, year: parsedYear } : getSelectedMonthParams(selectedDate);
     const month = selectedMonthParams.month;
@@ -141,9 +165,29 @@ function CalendarPageContent() {
     const weeklyVolumeKg = calendar.days.reduce((sum, day) => sum + (day.hasVolume ? 1 : 0), 0) * 12.4;
     const previousMonth = shiftMonth(year, month, -1);
     const nextMonth = shiftMonth(year, month, 1);
+    const yearOptions = Array.from(new Set([
+        currentYear - 5,
+        currentYear - 4,
+        currentYear - 3,
+        currentYear - 2,
+        currentYear - 1,
+        currentYear,
+        currentYear + 1,
+        year
+    ])).sort((first, second) => first - second);
 
     function navigateToMonth(targetYear: number, targetMonth: number, date: string) {
         router.push(`/calendar?year=${targetYear}&month=${targetMonth}&date=${date}`);
+    }
+
+    function handleMonthChange(event: ChangeEvent<HTMLSelectElement>) {
+        const targetMonth = Number(event.target.value);
+        navigateToMonth(year, targetMonth, buildMonthDate(year, targetMonth));
+    }
+
+    function handleYearChange(event: ChangeEvent<HTMLSelectElement>) {
+        const targetYear = Number(event.target.value);
+        navigateToMonth(targetYear, month, buildMonthDate(targetYear, month));
     }
 
     return (
@@ -155,15 +199,45 @@ function CalendarPageContent() {
                             {monthHeading.split(' ')[0].toUpperCase()}{' '}
                             <span className="font-light text-primary-dim/50">{monthHeading.split(' ')[1]}</span>
                         </h2>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <button
                                 className="inline-flex h-10 items-center gap-1 rounded-full border border-outline-variant/15 bg-surface-container-low px-4 font-label text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant transition-colors hover:bg-surface-container-high"
-                                onClick={() => navigateToMonth(previousMonth.year, previousMonth.month, `${previousMonth.year}-${String(previousMonth.month).padStart(2, '0')}-01`)}
+                                onClick={() => navigateToMonth(previousMonth.year, previousMonth.month, buildMonthDate(previousMonth.year, previousMonth.month))}
                                 type="button"
                             >
                                 <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
                                 Prev Month
                             </button>
+                            <label className="sr-only" htmlFor="calendar-month">
+                                Calendar month
+                            </label>
+                            <select
+                                className={monthSelectClass}
+                                id="calendar-month"
+                                onChange={handleMonthChange}
+                                value={month}
+                            >
+                                {monthOptions.map((label, index) => (
+                                    <option key={label} value={index + 1}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                            <label className="sr-only" htmlFor="calendar-year">
+                                Calendar year
+                            </label>
+                            <select
+                                className={monthSelectClass}
+                                id="calendar-year"
+                                onChange={handleYearChange}
+                                value={year}
+                            >
+                                {yearOptions.map((yearOption) => (
+                                    <option key={yearOption} value={yearOption}>
+                                        {yearOption}
+                                    </option>
+                                ))}
+                            </select>
                             <button
                                 className="inline-flex h-10 items-center gap-1 rounded-full border border-outline-variant/15 bg-surface-container-low px-4 font-label text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant transition-colors hover:bg-surface-container-high"
                                 onClick={() => navigateToMonth(currentYear, currentMonth, fallbackDate)}
@@ -173,7 +247,7 @@ function CalendarPageContent() {
                             </button>
                             <button
                                 className="inline-flex h-10 items-center gap-1 rounded-full border border-outline-variant/15 bg-surface-container-low px-4 font-label text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant transition-colors hover:bg-surface-container-high"
-                                onClick={() => navigateToMonth(nextMonth.year, nextMonth.month, `${nextMonth.year}-${String(nextMonth.month).padStart(2, '0')}-01`)}
+                                onClick={() => navigateToMonth(nextMonth.year, nextMonth.month, buildMonthDate(nextMonth.year, nextMonth.month))}
                                 type="button"
                             >
                                 Next Month
